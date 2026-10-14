@@ -248,6 +248,16 @@ a.xref:hover{color:var(--brand);text-decoration-style:solid}
 }
 @media (max-width:520px){.anat{grid-template-columns:1fr}.anat div{border-right:0;border-bottom:1px solid var(--line)}.tnav button.word{display:none}}
 @media (prefers-reduced-motion:reduce){.page.turn-n,.page.turn-p{animation:none}}
+/* guide switcher */
+.guides{display:flex;gap:6px;flex-wrap:wrap}
+.guides a{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);padding:2px 7px;text-decoration:none}
+.guides a:hover{color:var(--brand);border-color:var(--brand)}
+.guides a.on{color:var(--ink);border-color:var(--brand)}
+.see a{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding:11px 0;font-size:14.5px;font-weight:500;color:inherit;text-decoration:none}
+.see a:first-child{border-top:0;padding-top:0}
+.see a:hover{color:var(--brand)}
+.see a i{font-style:normal;font-family:var(--mono);font-size:11px;width:24px;height:24px;border:1px solid var(--slot);color:var(--slot);display:grid;place-items:center;flex-shrink:0}
+.see a small{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
 </style>
 
 <div class="app">
@@ -262,7 +272,7 @@ a.xref:hover{color:var(--brand);text-decoration-style:solid}
     <div class="found" id="found"></div>
     <button class="btn ghost mtoggle" id="mtoggle">Show contents</button>
     <nav class="toc" id="toc" aria-label="Contents"></nav>
-    <div class="railfoot">Backend Field Guide <span>v2.0</span></div>
+    <div class="railfoot"><nav class="guides" aria-label="Guides"><a href="index.html">Home</a><a class="on" href="backend-terminologies.html">Backend</a><a href="git-explained.html">Git</a><a href="architecture-designs.html">Architecture</a></nav><span>v2.0</span></div>
   </aside>
   <main class="main">
     <div class="topbar"><div class="crumb" id="crumb"></div>
@@ -1576,6 +1586,8 @@ byId.cors.one=`Cross-Origin Resource Sharing: a browser rule that lets a page fr
 byId.percentiles.one=`p99 (the 99th percentile) means 99% of requests were faster than this. It's the latency of your unlucky 1 in 100.`;
 byId.https.one=`HTTPS (HTTP Secure) is plain HTTP sent through an encrypted TLS (Transport Layer Security) connection, so nobody in between can read or change it.`;
 byId.rest.one=`REST (REpresentational State Transfer) is a way of designing APIs where URLs name things (resources) and HTTP methods say what to do with them.`;
+/* which Architecture Field Guide designs lean on each term */
+const ARCH={"latency":[["single-server","Single server"],["three-tier","Three-tier architecture"],["cdn-storage","Object storage + CDN"],["multi-region","Multi-region & failover"]],"https":[["single-server","Single server"],["reverse-proxy","Reverse proxy, TLS & static files"]],"timeout":[["single-server","Single server"],["reverse-proxy","Reverse proxy, TLS & static files"],["async-queue","Queue + background workers"],["gateway-services","API gateway + services"]],"status-codes":[["single-server","Single server"],["reverse-proxy","Reverse proxy, TLS & static files"]],"rest":[["three-tier","Three-tier architecture"]],"n-plus-1":[["three-tier","Three-tier architecture"]],"pagination":[["three-tier","Three-tier architecture"]],"connection-pool":[["three-tier","Three-tier architecture"],["load-balanced","Load balancer + stateless servers"],["read-replicas","Read replicas"]],"cors":[["reverse-proxy","Reverse proxy, TLS & static files"]],"anatomy":[["reverse-proxy","Reverse proxy, TLS & static files"]],"load-balancer":[["load-balanced","Load balancer + stateless servers"],["realtime-scale","Scaling real-time connections"]],"auth":[["load-balanced","Load balancer + stateless servers"],["cdn-storage","Object storage + CDN"],["gateway-services","API gateway + services"]],"throughput":[["load-balanced","Load balancer + stateless servers"],["read-replicas","Read replicas"],["cdn-storage","Object storage + CDN"],["sharding","Sharding (splitting the data)"]],"cold-start":[["load-balanced","Load balancer + stateless servers"]],"cache":[["cache-aside","Cache in front of the database"],["cdn-storage","Object storage + CDN"]],"ttl":[["cache-aside","Cache in front of the database"],["cdn-storage","Object storage + CDN"],["offline-first","Offline-first devices"]],"thundering-herd":[["cache-aside","Cache in front of the database"],["offline-first","Offline-first devices"],["realtime-scale","Scaling real-time connections"]],"eventual-consistency":[["cache-aside","Cache in front of the database"],["read-replicas","Read replicas"],["offline-first","Offline-first devices"],["event-driven","Event-driven services"],["multi-region","Multi-region & failover"]],"percentiles":[["cache-aside","Cache in front of the database"],["sharding","Sharding (splitting the data)"]],"race-condition":[["read-replicas","Read replicas"],["sharding","Sharding (splitting the data)"]],"async-queue":[["async-queue","Queue + background workers"],["event-driven","Event-driven services"]],"idempotency":[["async-queue","Queue + background workers"],["offline-first","Offline-first devices"],["event-driven","Event-driven services"]],"backpressure":[["async-queue","Queue + background workers"],["realtime-scale","Scaling real-time connections"],["event-driven","Event-driven services"]],"retry-backoff":[["async-queue","Queue + background workers"],["offline-first","Offline-first devices"],["realtime-scale","Scaling real-time connections"]],"websocket":[["realtime-scale","Scaling real-time connections"]],"rate-limiting":[["gateway-services","API gateway + services"]],"tail-latency":[["gateway-services","API gateway + services"],["sharding","Sharding (splitting the data)"]],"circuit-breaker":[["gateway-services","API gateway + services"],["event-driven","Event-driven services"],["multi-region","Multi-region & failover"]],"sli-slo-sla":[["multi-region","Multi-region & failover"]],"error-budget":[["multi-region","Multi-region & failover"]]};
 const LORDER=LEVELS.map(l=>l.k);
 const SORTED=[...TERMS].sort((a,b)=>LORDER.indexOf(a.lv)-LORDER.indexOf(b.lv));
 const lvOf=k=>LEVELS.find(l=>l.k===k);
@@ -1673,6 +1685,7 @@ function termPage(x){
     <div class="side">
       <div class="panel note">${ph('done',"You've already done this")}<div class="pb txt"><p>${x.done}</p></div></div>
       <div class="panel likep"><div class="pb txt"><div class="lab">Picture it</div><p>${x.like}</p></div></div>
+      ${ARCH[x.id]?`<div class="panel">${ph('cube','In the Architecture guide')}<div class="pb see">${ARCH[x.id].map(([id,t])=>`<a href="architecture-designs.html#${id}"><i>↗</i>${t}<small>design</small></a>`).join('')}</div></div>`:''}
       <div class="panel">${ph('link','See also')}<div class="pb see">${x.rel.map(r=>`<button data-go="${r}"><i>${ORDER.indexOf(r)}</i>${byId[r].t}<small>${lvOf(byId[r].lv).name}</small></button>`).join('')}</div></div>
     </div>
   </div>

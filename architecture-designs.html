@@ -1,0 +1,1160 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Architecture Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: dashboard skin. Fixed left rail = contents + search; right = full-width workspace of sharp bordered panels. Single dark look by design. */
+:root{
+  color-scheme:dark;
+  --bg:#0c161b; --rail:#0f1b21; --panel:#111e25; --panel2:#18272f; --ink:#eef2f4; --muted:#8a9aa3; --line:#22333c; --line2:#2c3f49;
+  --brand:#ff6a1a; --req:#4f8cff; --ad:#2ccf7f; --slot:#f5a524; --bad:#ff4d4f; --pop:#a78bfa; --pi:#ff6a1a; --on:#0b1419; --paper:#111e25;
+  --sans:'Jost',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--sans);font-size:15px;padding:0}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+::selection{background:var(--brand);color:var(--on)}
+
+.app{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}
+
+/* ---------- rail ---------- */
+.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;
+  position:sticky;top:env(safe-area-inset-top,0px);height:100vh;align-self:start}
+.brand{padding:22px 22px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+.brand img{display:block;height:28px;width:auto}
+.brand small{display:block;margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+.search{margin:16px 16px 6px;position:relative}
+.search input{width:100%;height:40px;border-radius:0;border:1px solid var(--line2);background:var(--panel);padding:0 36px 0 34px;font-size:14px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{border-color:var(--brand);outline:none}
+.search svg{position:absolute;left:10px;top:11px;width:17px;height:17px;stroke:var(--muted);fill:none;stroke-width:2}
+.search kbd{position:absolute;right:8px;top:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);padding:1px 6px}
+.found{padding:4px 18px 4px;font-family:var(--mono);font-size:10.5px;color:var(--muted);min-height:18px;letter-spacing:.3px}
+.toc{overflow:auto;padding:4px 10px 16px;flex:1}
+.ch{margin-top:16px}
+.ch h3{font-family:var(--mono);font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin:0 10px 6px;font-weight:600;display:flex;gap:8px}
+.ch h3 i{font-style:normal;color:var(--brand)}
+.toc button{display:flex;flex-wrap:wrap;width:100%;align-items:baseline;gap:4px 10px;text-align:left;background:none;border:0;border-left:2px solid transparent;
+  padding:7px 10px 7px 14px;cursor:pointer;font-size:14.5px;font-weight:500;color:color-mix(in srgb,var(--ink) 82%,var(--muted))}
+.toc button:hover{background:var(--panel);color:var(--ink)}
+.toc button.on{background:var(--panel2);border-left-color:var(--brand);color:var(--ink);font-weight:600}
+.toc button .pg{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.toc button mark{background:color-mix(in srgb,var(--brand) 35%,transparent);color:inherit;padding:0 1px}
+.toc .via{display:block;flex-basis:100%;order:3;font-size:11.5px;color:var(--muted);font-weight:400}
+.empty{padding:14px 18px;font-size:13px;color:var(--muted);line-height:1.5}
+.railfoot{border-top:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.railfoot span{font-family:var(--mono);font-size:11px;color:var(--ink);border:1px solid var(--line2);padding:2px 7px}
+.mtoggle{display:none}
+
+/* ---------- workspace ---------- */
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 28px;
+  position:sticky;top:env(safe-area-inset-top,0px);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);z-index:5}
+.crumb{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb b{color:var(--ink);font-weight:600}
+.tnav{margin-left:auto;display:flex;align-items:stretch;border:1px solid var(--line2)}
+.tnav button{background:var(--panel);border:0;padding:0 12px;height:34px;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+.tnav button:hover:not([disabled]){color:var(--ink);background:var(--panel2)}
+.tnav button[disabled]{opacity:.35;cursor:default}
+.tnav span{display:flex;align-items:center;padding:0 12px;border-inline:1px solid var(--line2);font-family:var(--mono);font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.page{padding:26px 28px 28px;flex:1}
+.page.turn-n{animation:turnN .32s cubic-bezier(.2,.7,.2,1)}
+.page.turn-p{animation:turnP .32s cubic-bezier(.2,.7,.2,1)}
+@keyframes turnN{from{opacity:0;transform:translateX(22px)}}
+@keyframes turnP{from{opacity:0;transform:translateX(-22px)}}
+
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--brand);font-weight:600;display:flex;align-items:center;gap:8px}
+.eyebrow::before{content:"";width:8px;height:8px;background:var(--brand)}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 24px;margin-bottom:20px}
+.head .l{min-width:0;flex:1 1 420px}
+.term{font-size:clamp(28px,3.4vw,40px);line-height:1.05;margin:8px 0 8px;font-weight:700;letter-spacing:-.6px;text-wrap:balance}
+.one{font-size:16.5px;line-height:1.5;margin:0;color:var(--muted);max-width:80ch;text-wrap:pretty}
+.one code{font-family:var(--mono);font-size:.85em}
+.aka{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:520px}
+.aka span{font-family:var(--mono);font-size:11px;border:1px solid var(--line2);background:var(--panel);padding:4px 8px;color:var(--muted)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(300px,1fr);gap:16px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);min-width:0}
+.ph{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.ph .ic{width:32px;height:32px;border:1px solid var(--brand);display:grid;place-items:center;flex-shrink:0}
+.ph .ic svg{width:16px;height:16px;stroke:var(--brand);fill:none;stroke-width:1.8}
+.ph h2{font-size:15.5px;font-weight:600;margin:0}
+.ph .act{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);background:none;border:0;cursor:pointer;padding:4px 0}
+.ph .act:hover{color:var(--ink)}
+.pb{padding:18px}
+.lab{font-family:var(--mono);font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+.lab em{font-style:normal;color:var(--brand)}
+
+.stats{display:flex;flex-wrap:wrap;gap:0;margin:-18px -18px 16px;border-bottom:1px solid var(--line)}
+.stats:empty{display:none}
+.stat{display:flex;flex-direction:column-reverse;justify-content:flex-end;gap:6px;padding:12px 18px;border-right:1px solid var(--line);min-width:0;flex:1 1 140px}
+.stat b{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.3px}
+.stat span{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.4px;text-transform:uppercase;line-height:1.3}
+.stage{width:100%;position:relative}
+.stage canvas{display:block}
+.ctrl{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin:16px -18px -18px;padding:14px 18px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--rail) 60%,var(--panel))}
+.ctrl:empty{display:none}
+.sl{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;flex-wrap:wrap}
+.sl input{width:150px;accent-color:var(--brand)}
+.sl output{font-family:var(--mono);font-size:11.5px;color:var(--brand);min-width:62px}
+.tg{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;user-select:none}
+.tg input{position:absolute;opacity:0;width:1px;height:1px}
+.sw{width:38px;height:20px;background:var(--panel2);border:1px solid var(--line2);position:relative;transition:background .2s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;background:var(--muted);transition:all .2s}
+.tg input:checked + .sw{background:var(--brand);border-color:var(--brand)}
+.tg input:checked + .sw::after{left:21px;background:var(--on)}
+.tg input:focus-visible + .sw{outline:2px solid var(--brand);outline-offset:2px}
+.btn{border:1px solid var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand);padding:7px 13px;
+  font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--brand);color:var(--on)}
+.btn.ghost{border-color:var(--line2);background:none;color:var(--muted)}
+.btn.ghost:hover{background:var(--panel2);color:var(--ink)}
+.cap{font-size:13.5px;color:var(--muted);margin:14px 0 0;line-height:1.5}
+.cap b{font-family:var(--mono);color:var(--brand);font-weight:600;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;margin-right:8px}
+
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.txt p{font-size:15.5px;line-height:1.65;margin:0 0 12px;max-width:72ch;color:color-mix(in srgb,var(--ink) 88%,var(--muted))}
+.txt p:last-child{margin-bottom:0}
+.txt strong{color:var(--ink);font-weight:600}
+.txt em{color:var(--ink)}
+.txt code{font-family:var(--mono);font-size:.82em;background:var(--panel2);border:1px solid var(--line);padding:1px 5px}
+.note{border-left:2px solid var(--ad)}
+.note .lab{color:var(--ad)}
+.likep{border-left:2px solid var(--pop)}
+.likep .lab{color:var(--pop)}
+.see{display:flex;flex-direction:column}
+.see button{display:flex;align-items:center;gap:12px;background:none;border:0;border-top:1px solid var(--line);padding:11px 0;text-align:left;cursor:pointer;font-size:14.5px;font-weight:500}
+.see button:first-child{border-top:0;padding-top:0}
+.see button:hover{color:var(--brand)}
+.see button i{font-style:normal;font-family:var(--mono);font-size:11px;width:24px;height:24px;border:1px solid var(--brand);color:var(--brand);display:grid;place-items:center;flex-shrink:0}
+.see button small{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.plain{margin-top:16px}
+.plain .pb{columns:2 380px;column-gap:40px}
+.plain .pb p{break-inside:avoid}
+
+/* cover */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);padding:16px 18px}
+.kpi:first-child{border-left:2px solid var(--brand)}
+.kpi .lab{margin-bottom:8px}
+.kpi b{font-size:34px;font-weight:600;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.kpi:first-child b{color:var(--brand)}
+.kpi p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start}
+.row{display:flex;align-items:center;gap:14px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:12px 18px;text-align:left;cursor:pointer;min-width:0}
+.row:first-child{border-top:0}
+.row:hover{background:var(--panel2)}
+.row i{font-style:normal;font-family:var(--mono);font-size:11px;width:26px;height:26px;border:1px solid var(--brand);color:var(--brand);display:grid;place-items:center;flex-shrink:0}
+.row div{min-width:0;flex:1}
+.row strong{display:block;font-size:14.5px;font-weight:600}
+.row span{display:block;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row small{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.anat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.anat div{padding:16px 18px;border-right:1px solid var(--line);font-size:13.5px;line-height:1.5;color:var(--muted)}
+.anat div:last-child{border-right:0}
+.anat b{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:14.5px;font-weight:600;margin-bottom:4px}
+.anat b::before{content:"";width:8px;height:8px;background:var(--c)}
+
+
+/* levels, abbreviations, cover extras */
+.grp{display:flex;margin:4px 16px 2px;border:1px solid var(--line2)}
+.grp button{flex:1;background:var(--panel);border:0;padding:6px 0;font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.grp button+button{border-left:1px solid var(--line2)}
+.grp button.on{background:var(--panel2);color:var(--ink);box-shadow:inset 0 -2px 0 var(--brand)}
+.lvd{width:7px;height:7px;flex-shrink:0;align-self:center}
+.lvb{font-family:var(--mono);font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--c);border:1px solid var(--c);padding:2px 7px;background:color-mix(in srgb,var(--c) 12%,transparent)}
+.eyebrow span{color:var(--muted)}
+.eyebrow:has(.lvb)::before{display:none}
+.full{display:flex;flex-wrap:wrap;gap:6px 18px;margin:2px 0 12px;padding:0}
+.full div{display:flex;gap:8px;align-items:baseline}
+.full dt{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--brand)}
+.full dd{margin:0;font-size:14px;color:var(--ink)}
+.where{display:flex;flex-direction:column}
+.wh{padding:14px 18px;border-top:1px solid var(--line)}
+.wh:first-child{border-top:0}
+.wh .lab{margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{background:var(--panel2);border:1px solid var(--line2);padding:4px 9px;font-size:12.5px;cursor:pointer}
+.chips button:hover{border-color:var(--brand);color:var(--brand)}
+.kpi.lvk{text-align:left;cursor:pointer;border-left:2px solid var(--c);font:inherit;color:inherit}
+.kpi.lvk b{color:var(--c)}
+.kpi.lvk:hover{background:var(--panel2)}
+.row i{border-color:var(--c,var(--brand));color:var(--c,var(--brand))}
+.arch3d{position:relative;width:100%;overflow:hidden;background:radial-gradient(ellipse at 55% 40%,color-mix(in srgb,var(--panel2) 70%,transparent),transparent 70%)}
+.arch3d canvas{display:block;cursor:grab}
+.arch3d canvas:active{cursor:grabbing}
+.a3lab{position:absolute;inset:0;pointer-events:none}
+.a3l{position:absolute;left:0;top:0;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line2);border-left:2px solid var(--brand);padding:4px 8px;white-space:nowrap}
+.a3l b{display:block;font-size:12.5px;font-weight:600}
+.a3l span{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:.4px}
+.a3l.g{border-left-color:var(--ad)}.a3l.b{border-left-color:var(--req)}.a3l.o{border-left-color:var(--pi)}.a3l.p{border-left-color:var(--pop)}.a3l.y{border-left-color:var(--slot)}
+.a3l.m{border:0;background:none;font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--muted)}
+.a3pk{position:absolute;left:0;top:0;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--on);padding:2px 6px;white-space:nowrap}
+.a3toast{position:absolute;left:12px;top:12px;background:var(--panel);border:1px solid var(--ad);border-left:3px solid var(--ad);padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--ad);opacity:0;transform:translateY(-6px);transition:all .3s;pointer-events:none}
+.a3toast.on{opacity:1;transform:none}
+.a3hint{position:absolute;right:10px;bottom:8px;font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);transition:opacity .4s}
+@media (max-width:700px){.a3l span{display:none}.a3l b{font-size:11px}}
+
+
+/* folding + cross-links */
+.ch h3{margin:0 0 4px}
+.gh{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:4px 10px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;text-align:left}
+.gh:hover{color:var(--ink)}
+.gh svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.6;transition:transform .2s;flex-shrink:0}
+.gh em{margin-left:auto;font-style:normal;color:var(--muted);font-size:10px}
+.ch.shut .gh svg{transform:rotate(-90deg)}
+.ch.shut .gi{display:none}
+.found{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fold{background:none;border:0;padding:0;font-family:var(--mono);font-size:10.5px;color:var(--brand);cursor:pointer;letter-spacing:.3px}
+.fold:hover{text-decoration:underline}
+.fh{width:100%;background:none;border:0;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;font:inherit;color:inherit}
+.fh:hover{background:var(--panel2)}
+.fh h2 small{font-family:var(--mono);font-size:10.5px;color:var(--muted);font-weight:500;margin-left:6px}
+.chev{width:14px!important;height:14px!important;transition:transform .2s}
+.fp.shut .chev{transform:rotate(-90deg)}
+.fp.shut .fh{border-bottom:0}
+.fp.shut .fb{display:none}
+a.xref{color:inherit;text-decoration:underline dotted color-mix(in srgb,var(--brand) 80%,transparent);text-decoration-thickness:1.5px;text-underline-offset:3px;cursor:pointer}
+a.xref:hover{color:var(--brand);text-decoration-style:solid}
+.xpop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line2);border-top:2px solid var(--brand);padding:12px 14px;box-shadow:0 18px 40px -16px rgb(0 0 0 / .7);pointer-events:none}
+.xpop .xh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.xpop .xh b{font-size:15px}
+.xpop .xf{font-size:12px;color:var(--muted);margin-bottom:6px}
+.xpop .xf span{font-family:var(--mono);color:var(--brand);font-weight:700}
+.xpop p{margin:0;font-size:13.5px;line-height:1.5}
+.xpop p code{font-family:var(--mono);font-size:.85em}
+.xpop .xo{margin-top:8px;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+@media (hover:none){.xpop{display:none}}
+
+@media (max-width:1180px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.anat{grid-template-columns:repeat(2,minmax(0,1fr))}.anat div:nth-child(2){border-right:0}.anat div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .mtoggle{display:block;margin:4px 16px 12px;width:calc(100% - 32px)}
+  .rail:not(.open) .toc,.railfoot{display:none}
+  .toc{max-height:55vh}
+  .topbar{padding:0 16px}
+  .page{padding:20px 16px}
+  .aka{justify-content:flex-start}
+  .pb{padding:14px}
+  .stats{margin:-14px -14px 14px}.ctrl{margin:14px -14px -14px;padding:12px 14px}
+  .stat{padding:10px 14px;flex-basis:110px}.stat b{font-size:20px}
+  .sl input{width:120px}
+  .chgrid{grid-template-columns:1fr}
+}
+@media (max-width:520px){.anat{grid-template-columns:1fr}.anat div{border-right:0;border-bottom:1px solid var(--line)}.tnav button.word{display:none}}
+@media (prefers-reduced-motion:reduce){.page.turn-n,.page.turn-p{animation:none}}
+
+/* ---------- architecture guide additions ---------- */
+.guides{display:flex;gap:6px;flex-wrap:wrap}
+.guides a{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);padding:2px 7px;text-decoration:none}
+.guides a:hover{color:var(--brand);border-color:var(--brand)}
+.guides a.on{color:var(--ink);border-color:var(--brand)}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+.lst{list-style:none;margin:0;padding:0}
+.lst li{position:relative;padding:9px 0 9px 22px;border-top:1px solid var(--line);font-size:14.5px;line-height:1.55;color:color-mix(in srgb,var(--ink) 88%,var(--muted))}
+.lst li:first-child{border-top:0;padding-top:0}
+.lst li::before{content:"";position:absolute;left:2px;top:16px;width:8px;height:8px;background:var(--c,var(--brand))}
+.lst li:first-child::before{top:7px}
+.lst li b{color:var(--ink);font-weight:600}
+.lst li code{font-family:var(--mono);font-size:.82em;background:var(--panel2);border:1px solid var(--line);padding:1px 5px}
+.lst.plus li::before{content:"+";background:none;color:var(--ad);font-family:var(--mono);font-weight:700;width:auto;height:auto;top:8px;left:3px}
+.lst.plus li:first-child::before{top:-1px}
+.pw{border-top:2px solid var(--c)}
+.pw .lab{color:var(--c)}
+.ntvb{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--on);background:var(--brand);padding:2px 7px;margin-left:auto}
+.words{display:flex;flex-direction:column}
+.words div{padding:10px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.5;color:var(--muted)}
+.words div:first-child{border-top:0;padding-top:0}
+.words b{display:block;color:var(--ink);font-size:14px;font-weight:600;margin-bottom:2px}
+.bts{display:flex;flex-wrap:wrap;gap:8px}
+a.bt{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line2);padding:7px 11px;font-size:13.5px;font-weight:500;color:var(--ink);text-decoration:none}
+a.bt:hover{border-color:var(--brand);color:var(--brand)}
+a.bt i{width:7px;height:7px;background:var(--c);flex-shrink:0}
+a.bt small{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+.steps button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:none;border:0;border-top:1px solid var(--line);padding:14px 18px;text-align:left;cursor:pointer;min-width:0}
+.steps button+button{border-left:1px solid var(--line)}
+.steps button:hover{background:var(--panel2)}
+.steps small{font-family:var(--mono);font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.steps b{font-size:15px;font-weight:600}
+.steps button[disabled]{opacity:.35;cursor:default}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:0;border-top:1px solid var(--line)}
+.card{display:flex;flex-direction:column;gap:6px;background:none;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 16px 16px;text-align:left;cursor:pointer;min-width:0}
+.card:hover{background:var(--panel2)}
+.card canvas{display:block;width:100%;height:96px;margin-bottom:6px}
+.card .ct{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
+.card .ct i{font-style:normal;font-family:var(--mono);font-size:10.5px;width:22px;height:22px;border:1px solid var(--c);color:var(--c);display:grid;place-items:center;flex-shrink:0}
+.card p{margin:0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.card .ntvb{margin-left:0;align-self:flex-start}
+.lvh{display:flex;align-items:center;gap:10px;padding:14px 18px;font-family:var(--mono);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--c);font-weight:600}
+.lvh::before{content:"";width:8px;height:8px;background:var(--c)}
+.lvh span{color:var(--muted);letter-spacing:.3px;text-transform:none;font-family:var(--sans);font-size:13px;font-weight:400}
+.sym{display:flex;flex-direction:column}
+.sym button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;background:none;border:0;border-top:1px solid var(--line);padding:11px 18px;text-align:left;cursor:pointer;font-size:14px}
+.sym button:first-child{border-top:0}
+.sym button:hover{background:var(--panel2)}
+.sym button span{font-family:var(--mono);font-size:11px;color:var(--c,var(--brand));white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:14px 18px;font-size:13px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend span::before{content:"";width:10px;height:10px;border:2px solid var(--c)}
+.chk{display:flex;flex-direction:column}
+.ci{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;padding:13px 18px;border-top:1px solid var(--line);cursor:pointer}
+.ci:first-child{border-top:0}
+.ci:hover{background:var(--panel2)}
+.ci input{position:absolute;opacity:0;width:1px;height:1px}
+.ci .bx{grid-row:span 2;width:20px;height:20px;border:1.5px solid var(--line2);margin-top:1px;display:grid;place-items:center}
+.ci input:checked + .bx{background:var(--ad);border-color:var(--ad)}
+.ci input:checked + .bx::after{content:"";width:9px;height:5px;border-left:2px solid var(--on);border-bottom:2px solid var(--on);transform:rotate(-45deg) translate(1px,-1px)}
+.ci input:focus-visible + .bx{outline:2px solid var(--brand);outline-offset:2px}
+.ci b{font-size:14.5px;font-weight:600}
+.ci input:checked ~ b{color:var(--muted)}
+.ci p{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
+.ci .bts{grid-column:2;margin-top:6px}
+.ci a.bt{padding:3px 8px;font-size:12px}
+.meter{height:6px;background:var(--panel2);margin-top:8px}
+.meter div{height:100%;background:var(--c);transition:width .3s}
+.score{display:flex;align-items:baseline;gap:8px;margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.score b{font-size:15px;color:var(--c)}
+@media (max-width:1180px){.trio{grid-template-columns:1fr}}
+@media (max-width:640px){.steps{grid-template-columns:1fr}.steps button+button{border-left:0}.sym button{grid-template-columns:1fr}}
+</style>
+
+<div class="app">
+  <aside class="rail" id="index">
+    <div class="brand" id="home"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQ0AAABACAYAAAAAoyIOAAAPfklEQVR4AeydC9AcRRHHLyAgyBuBgCAqYokixUMgPCSYRI0BRDQGpRTFCqYs0RgVVJIAAkGqFAQKKSlBY2FZGBTRkEAMIG9FiqD4QKzEBxIkGkMKBAlBP3//++4ue3N7e3u323t7l/6q+5vZeXT39M70zc72zG4yMjJyFbimA64mPwuuov7+FaM/aC8AlxjjKXHiw3Mz8L4+4lJ4W7c9K/2bkHGrNvrLSjtN/bfG8c4jjXadD2YZG6rbafwp/8g85M2DxiZjxoyZAaEXwB0ScCfysuAu1H8Q5W5CaAHjIfp2Y3wt9OPgRRIP7yNOgrd127PSn4iMLwHjICvtNPXHxjHOmkZ/ngqNOWCWsaG6SWNPeQsZp/fCpxRQH8QHI40MB4EZqNOsQNFjzDg4YddAQRqgH28Lq2+C1vA3DMaHrZl0Q79qNBBqJZVkOAhM4VVQvxh0cA0MrAYwGPrhe5wGbA8mQsbMddR/NVgqqBoNSYTh+C3hPNAaZqL0A62ZOH3XgKEGroL2NqA1TGZc/teaSbf0G0ZDFRFQz2f/VNwQxXOZIX0n7Row0wA/eMdB/DTQGsYzHu+wZtILfQ3gsJ4eITQtCtNzvUb5j4Ba58iVrhNzDVhpgP6qRckFVvQjdG/AYNwVuS5VtMVoIOxzSGiy2gzdKLyeiwtBB9dAVQNl/ofB0DrGQ8i4JWgJz0J8GlhaaDEakhTDsZbwDNAazuBmFLEAa90Opz/8GphPE/cCLeF/EB/L+CvdOgZyNSDWaCgXwb9KeD9oDXdjOKytt3UbnP4Qa4D+qTWMWOe+nJs9iXH375xp5k6urdEQJxowjnAFaAkyGCu5MZr+WfJx2q6BrjVAv9yTSl8HreF6xtvPrJnkQT/RaNQYHFMLLQMtMH3XksGw0fb2FKYBeWJuZsxtOQaj1OsY0fZ3NBo0Rk4sRfi9n4xVN9sjEG20x10DaTRAf9QrT8000hTvtcwaKh4EDgx0NBpqCYbjPsK5oDVo89Hm1kycvmugkwYwGKdSRnuaCEzheMbXM6YcciaeymjUeMpb9De1uFWgaeAz3LBu5LKSxelupBqg/8k9/OoCmn86BkM/yAWwyo9F6sFJ40ZgewhoDZppXJknE6flGuhSA1r8Tz02uqRdL/5DxlQRC6x1frmFXSmGRspT9OW5cW9PaAbWfuv22Z7jGrDRAP3ubijvCFqCfoBPsmRgSbsroyFBMBz/IpwFWsPT3MDdrZk4fddAXQP0t+nEjwItQQZjW8ZRqR24khTQtdEQMRp8KeFtoCXIb0P7Uza1ZOK0XQPSAAZjV8IizseYyPgpvQMXumgLLUajbcnWDJ2Y9MfW5FxTdNCJ+2/kqlInFmoAg6EF+AfDdIPr72AwBsKBK6ntPRsNGi8/eb2S0nQriUfWvPdzU4/NSsTruwYSNHAPea8ALeFhxsxHLBkURbtnoyEBUcKThO8EreFGDIe27Fvz6Zo+OpDRfCkVLfEd0DcD2mANW8LgabMGZCBMv5pJ9UNBS/gPxAfKgQt520ImoyGqdIYlhNY7YnXuRhGb52hK94AO1lkiEq0HHXLWAAbjDZDUxkwCUzic/jG68GnKphjimY2GxEQhUvzvFTfEXbjJ8hjVAqkhGye9MWiAvqQFdrmJ6wfJsslnMT5+bcmgaNq5GI2a0GbfNanRV6DF17cp4ugayKiBX1F/Z9ASrsNgfNmSQT9o52Y0UI6mX/o2iELLtmi2UcTJYpZtcNp91ACzjNmw3w+0hOcZEx+wZNAv2rkZDTUAJcn9VgtLurTER7nxW1gycNol0ICBCPQbOQxeYEA6SlLfECrdpweiAmaJ52o0JAiGQ/701u+i5b+xWPwcXQNpNYDB0L6mv6Qtn6HcFMaB3ixmIFHeqrkbDTUVhU0g/DNoCRPoBB+0ZOC0h0cD9BUtoOuEbzlyWTbsCvq/tbe0pfwdaZsYjRrXIhZGr6UzHFDj54FrIEkDl5F5GGgJOrCqiMdzyzZ0pG1mNLC28q8v4k3HUlpp/esBi5KDi5ekAZ14/8mkAjnkvUCf3xOUp3QO5MpLwsxoqMko8FbC80FL0FZ9nTFqycNpD7YGPlOA+PqOTwFs+s/C1GioeRiOswl/Bzq4BoZVA7Po59ZreKXRnbnRqLVUJ349VYt74BoYJg3cgcHQURHD1KbEthRiNFCqNuyU50vxiSrxTNdAag08Rd/e6E7QL8Ro6Bag3L8Svg90cA0MgwZepBHWu2NhUT4ozGio6RiOHxDqXTmBg2tgoDVwEP15+UC3oEfhq0ZjZGTkWwXgK2syyvFraL3lam30YLg1cB4Gw/pzHqXVYNVoIJ0+DBOPlUpe6TvBp4KytaFtL8UdXQMDqIE/IfO5YBPwo7s3OLlH7Gm9rw2v1CeQUX9XcC64DHwWfAK8HEw8WKtuNJoUYH2B4dCGHp1GNfSOMNa6dPqFakAL+m+k/+q0tpCxPklwM4m94Bep1xUwsG+gQsjr28i2kvREoO4+4BMU0oz/PEIZra0IdwPlBLeYfMFJ/GuxES0JVCoEaNxPYfQ90ME1MCga2Jd++3y/hWUgH4EMJ4BR0MLsPtGEuDh1jyf9EVAGgiARriO35QtwfTMaCKNHlQ8RDvXmHtrn0H8NxM0MupVqNgZDbwC7rdehfHfZDHp5QN9LrXDsTkA+bd0gKx6oK4PxE3J1ahlBKjiMej+OlgwZR/OKir8bRpr2ETi4Bkw0kNVoLGNAXthBMn1qQ6fzd8LrY+gsiElrSWLw6mjCh1oyKpWzkU9fhovJGk2irh4/vj961fRfM5RPkzIenASuAUN4F/XPrCf23WjQWFnHfesCeegaKJkGHkWejv4Y9OPHwLuSEDo6IDr0VZpPHbkikN0RfkSJPcAo6NMIafZ3iceW0YrE5f6gk+IvQwbJfhuhXlicRl5oaL+A4agefNV3o4FwekzRtO9ExR1dAyXTwGQGkt74ZRKLAafzbcP1gSXQ1tvJjrSpP41Cx4FR0CdS3xxNiItTVzOU8I3IGniPBzXTaKpG2tUkfAmMgjaF6uVFpRRGQ5Ih6I2EcVM3kh1cA9JA4XgM/TLzSV8M2q2RXGsJBA3QY0BoBBqZ0Qj15aKgRcmmZC70JkezF6KJEHfGR6L7O+0OjYYYaLZSHqMhicCTwedAB9dAvzVwEQPnzqxCMOC3g4Zeg1an9sQF+nDUHtBv+ZVXZhSpr1nCMtJ08hhBA06l/qrGVXIkPOBYm0fT7DwPH3uq59aUZqahNqMEKVHnfypUkqNroB8aeJK+2LXvRCgoA17jSzMV9el6ttYKxkI/7eK/ZiQ71ivXQp1TczP0dwZlVGrJrQH5MlbhmuH98E/zyCVfkCai0BunRjUl9vui1hi9Guq3KM5/49SABpMeB/Jo/UKIbA9GQesQixh84RpDtEw1Thk9VmxTvWj+p7ccmmX8g+T1lHsAPJp4HGiM681JNE/ffIlet4vHfeTpBBFsV6Fv6RiOW2B+DejQswa8Yg8akMHYh/4nj+Ueqm+owiD+OVdTwBDkZ6H1BHldrqVc+NhRLU+6ZhBpz+nQYuid1DmrWrnzv1QOauhBsyLpJEpxs1IaDUmIwNMJrT+FAAsH10BDA2fS7/I6gUvrEA3CbSJa71jFYNdCaVjkD2FCiut50DonKBd9NKpnaQZUj3cKQwOzRWmNRq0lWl3WolHt0gPXgJkGFmIwLsmR+unQWgvOA2eBGsyLCEPQpyGbBjEDX18q3DssyLV++S8n/ByoRcq4lwbnUn9X8usQN8ZFp57fKWwpG0ewE5HC8rmJUspbYNgiOGkOroG8NKDNW+Fejky06bsj4A7gHPBSUNvp9SOozWHha9JjGOjRtYvPxzDXzGNT6MwELwblBfoyyoWvckmq/EL/aijDVYs2Aq2JNC46REKHsHWlNhpqDMp5mFCu5gRW4HQ3cg0cSD8r5IcJPlqEPDJG39G3NeNi8g+hbpyMcorUgmi0SqeF3PBtTLRuI44h03pLuE9lfemNhlqAsmRNQ+cWZTm6BrJq4D30r3DQZaWZWB9+D1AgfOV6AGl12K8eqYULqKPtFrXLDQHpOl5Cn0LdkFipjGHA71IZ/dNCZjjbeNNoVsf/ekwKC90zEEajJrUcv2IVV8v3wDXQrQYuYNBpP0e39fIovzogEreGUS8SN8Oo5ym8SP8CfJ2uaZ/eBIXHEo7DqKQZ+1NFI4rQW5SmYrRO3+IIK8XtiQBa5yBwcA1k0sBy+tTcTBSCygzE3cFrwHAdIChZvQwfEX5ZTY3/Fz4ihKW00BqmRd8ChefWaFNa3CNQSCPc2Vtdi+nBaIR0i7vmJmuapcWk4pg6p2HUgPpR2il6x/ZjJOaAejUpd/GPUmEB11oPINoK5OnxQ4uY0cwVkYvQqWoqdeTZGSnSFJV7QlMCY0WyVNOIf60aaf6nHa7NKZEr+MX5fFTd0QfKaKhNKEC+G3FKULajayCNBo6gH2mQpymbpowW6qODWj9s1R2hYWUGo4xJaBS00zt67ujisB7Xch0naAboaWNZuPagc0ybC1YqobPkptSVA1pYrkL6WBL1qpigAXJnr74aHjijoSZww/VtztgGK9/RNZCggen0Hx13l1Ck6yzNLsJK2huiA3tnMAh14PAUQi3mr6NgOO6uJS0KX+FCj+MEDTiK+jr49+OEoqeDcZaSq8+eEjSBPE6bErj4FBg+2mttYx30NFMSzROJ6yS9v1M2hHPQm9ZHSrfLNRQ06Vq+9tVGJBXyPNdARAO30/HDX9xIdm9RaMotIDpTqBOST8Y3uNABwHLs0uHD1Z2ipNVBe1E+Vr+oVCqadWgX6muiabW4zvW8krjo6Qi+OH+LW5DnMco0AWkyGJ9oShy92JxAjmKiqQ1q+sQISU2wiPpX1FNCi1dPL31II7QTdv/SC+oClkUDq+kzE62EgbYeE8KFw07s9AblUOq2PCqRpt2xafee1PncSr22G+HIm09BeaqGsxiS24KOEWxyfBtYo6EmogQdxXaK4o6ugQQNaNU/6ZVmQtX0WfTH2ZQ+HNRMgSARdODUbtSJW3+oViRPb0UO5kKzEYJE+Cy5Oh2MoD1AUz4deh0rL9j2BUdz9Er6aOrI12M0hf91oyG/eGuMe05ChGxAg/Q8qENPreW/PZukmWqrE+qTD1aYSbiMla3vm+jrWLtC9jDRH+XCrVeaWkzUI4kOAtb9kwOZ7p8O8d2OctNAzZYT1UcZHWqsnbH6PMESCuvwHL390aAXvfeStgXlLgFTzSAop9fN+qiSFlBvor5kFM3HiYvmsYSbUy72lfT/AQAA//+IT33sAAAABklEQVQDALtOC2XYOU4jAAAAAElFTkSuQmCC" alt="NTV360" width="118" height="28"><small>Architecture Field Guide</small></div>
+    <div class="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="q" type="search" placeholder="Search cache, replica, queue…" autocomplete="off" aria-label="Search the designs">
+      <kbd>/</kbd>
+    </div>
+    <div class="found" id="found"></div>
+    <button class="btn ghost mtoggle" id="mtoggle">Show contents</button>
+    <nav class="toc" id="toc" aria-label="Contents"></nav>
+    <div class="railfoot"><nav class="guides" aria-label="Guides"><a href="index.html">Home</a><a href="backend-terminologies.html">Backend</a><a href="git-explained.html">Git</a><a class="on" href="architecture-designs.html">Architecture</a></nav><span>v1.0</span></div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><div class="crumb" id="crumb"></div>
+      <div class="tnav"><button id="prev">← Prev</button><span id="folio"></span><button id="next">Next →</button></div></div>
+    <article class="page" id="page"></article>
+  </main>
+</div>
+<script>
+/* ================= drawing engine ================= */
+const col={};
+const CV=['bg','paper','panel','panel2','ink','muted','line','line2','brand','req','ad','slot','bad','pop','pi','on'];
+function readCol(){const s=getComputedStyle(document.documentElement);CV.forEach(k=>col[k]=s.getPropertyValue('--'+k).trim())}
+readCol();
+const FONT='Jost, system-ui, sans-serif', MONO='"JetBrains Mono", ui-monospace, monospace';
+const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,p)=>a+(b-a)*p;
+const ez=p=>{p=clamp(p,0,1);return p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2};
+const randn=()=>{let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const logn=(med,sig)=>med*Math.exp(sig*randn());
+const alpha=(c,a)=>{const h=(c||'#888').replace('#','');const f=h.length===3?h.split('').map(x=>x+x).join(''):h;
+  const n=parseInt(f,16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+function seq(e,durs){let a=0;for(let i=0;i<durs.length;i++){if(e<a+durs[i])return{i,p:(e-a)/durs[i]};a+=durs[i]}return{i:durs.length-1,p:1}}
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function mkG(ctx){
+  const g={
+    rr(x,y,w,h,r,fill,stroke,lw=2,dash){ctx.beginPath();ctx.roundRect(x,y,Math.max(0,w),Math.max(0,h),Math.min(r,2,Math.abs(w)/2,Math.abs(h)/2));
+      if(fill){ctx.fillStyle=fill;ctx.fill()} if(stroke){ctx.setLineDash(dash||[]);ctx.lineWidth=lw;ctx.strokeStyle=stroke;ctx.stroke();ctx.setLineDash([])}},
+    t(s,x,y,o={}){ctx.font=`${o.it?'italic ':''}${o.w||600} ${o.s||13}px ${o.m?MONO:FONT}`;ctx.fillStyle=o.c||col.ink;ctx.textAlign=o.a||'center';ctx.textBaseline=o.b||'middle';ctx.fillText(s,x,y)},
+    tw(s,o={}){ctx.font=`${o.w||600} ${o.s||13}px ${o.m?MONO:FONT}`;return ctx.measureText(s).width},
+    ln(x1,y1,x2,y2,c,lw=2,dash){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.setLineDash(dash||[]);ctx.lineWidth=lw;ctx.strokeStyle=c;ctx.stroke();ctx.setLineDash([])},
+    dot(x,y,r,c){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill()},
+    ring(x,y,r,p,c,lw=3){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.lineWidth=lw;ctx.strokeStyle=col.line;ctx.stroke();
+      ctx.beginPath();ctx.arc(x,y,r,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(p,0,1));ctx.strokeStyle=c;ctx.lineCap='round';ctx.stroke();ctx.lineCap='butt'},
+    spin(x,y,r,t,c){ctx.beginPath();ctx.arc(x,y,r,t*6,t*6+4.2);ctx.lineWidth=3;ctx.strokeStyle=c;ctx.lineCap='round';ctx.stroke();ctx.lineCap='butt'},
+    box(x,y,w,h,label,c,o={}){
+      if(o.glow){ctx.save();ctx.shadowColor=c;ctx.shadowBlur=18}
+      g.rr(x,y,w,h,10,o.fill||col.panel,c,2,o.dash); if(o.glow)ctx.restore();
+      if(o.glow) g.rr(x,y,w,h,10,null,c,2,o.dash);
+      g.t(label,x+w/2,y+h/2+(o.sub?-8:0),{c:o.tc||c,w:700,s:o.s||(w<90?12.5:14)});
+      if(o.sub) g.t(o.sub,x+w/2,y+h/2+10,{c:o.subc||col.muted,s:11,w:500,m:o.subm});
+    },
+    pill(x,y,label,bg,fg,o={}){const s=o.s||11.5,w=g.tw(label,{s,w:700,m:o.m})+16,h=s+10,xx=o.a==='left'?x:o.a==='right'?x-w:x-w/2;
+      g.rr(xx,y-h/2,w,h,h/2,bg);g.t(label,xx+w/2,y+.5,{c:fg,s,w:700,m:o.m});return w},
+    pk(x,y,c,label,r=7){if(label){g.pill(x,y,label,c,col.on,{s:10.5,m:true})}else g.rr(x-r,y-r,r*2,r*2,0,c)},
+    x(x,y,s,c){g.ln(x-s,y-s,x+s,y+s,c,3);g.ln(x+s,y-s,x-s,y+s,c,3)},
+    clip(s,maxW,o){if(g.tw(s,o)<=maxW)return s;while(s.length>3&&g.tw(s+'…',o)>maxW)s=s.slice(0,-1);return s+'…'}
+  };return g;
+}
+
+function Stage(host,H){
+  const cv=document.createElement('canvas');cv.setAttribute('role','img');host.appendChild(cv);
+  const ctx=cv.getContext('2d');const st={ctx,W:300,H,g:mkG(ctx),paused:false,T:0};
+  const fit=()=>{const dpr=Math.min(2,devicePixelRatio||1);st.W=Math.max(200,host.clientWidth);cv.width=st.W*dpr;cv.height=H*dpr;
+    cv.style.width=st.W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)};
+  fit();const ro=new ResizeObserver(fit);ro.observe(host);
+  let fn,raf,last=performance.now(),alive=true;const speed=REDUCED?.6:1;
+  const loop=now=>{if(!alive)return;let dt=Math.min(.05,(now-last)/1000)*speed;last=now;if(st.paused||document.hidden)dt=0;st.T+=dt;
+    readCol();ctx.clearRect(0,0,st.W,H);try{fn(st.T,dt)}catch(e){console.error(e);alive=false}raf=requestAnimationFrame(loop)};
+  st.frame=f=>{fn=f;raf=requestAnimationFrame(loop)};
+  st.stop=()=>{alive=false;cancelAnimationFrame(raf);ro.disconnect()};
+  st.label=s=>cv.setAttribute('aria-label',s);
+  return st;
+}
+
+function UI(ctrl,stats,pid){
+  let n=0;const id=()=>`${pid}-c${n++}`;
+  return{
+    slider(label,min,max,val,on,fmt=v=>v,step=1){const i=id();const w=document.createElement('label');w.className='sl';
+      w.innerHTML=`<span>${label}</span><input type="range" id="${i}" min="${min}" max="${max}" step="${step}" value="${val}"><output>${fmt(val)}</output>`;
+      const inp=w.querySelector('input'),out=w.querySelector('output');inp.oninput=()=>{const v=+inp.value;out.textContent=fmt(v);on(v)};ctrl.appendChild(w);return inp},
+    toggle(label,val,on){const i=id();const w=document.createElement('label');w.className='tg';
+      w.innerHTML=`<input type="checkbox" id="${i}" ${val?'checked':''}><span class="sw"></span><span>${label}</span>`;
+      const inp=w.querySelector('input');inp.onchange=()=>on(inp.checked);ctrl.appendChild(w);return inp},
+    btn(label,on,ghost){const b=document.createElement('button');b.className='btn'+(ghost?' ghost':'');b.id=id();b.textContent=label;b.onclick=on;ctrl.appendChild(b);return b},
+    stat(label,c='ink',init='0'){const d=document.createElement('div');d.className='stat';d.innerHTML=`<b style="color:var(--${c})">${init}</b><span>${label}</span>`;
+      stats.appendChild(d);const b=d.firstElementChild;let last=null;return v=>{if(v!==last){b.textContent=v;last=v}}}
+  };
+}
+const D={};
+</script>
+<script>
+/* ================= architecture diagram engine =================
+   A design is data: nodes (x,y in 0..1), edges, zones, and scenarios.
+   Scenarios are async functions that move packets hop by hop; each hop adds
+   simulated milliseconds (edge + node work), which feed the p50/p99 stats. */
+function layout(d,W,H,small){
+  const px=small?6:(W<560?8:16),top=small?6:26,bot=small?6:24,cols=d.cols||4;
+  const bw=small?clamp((W-2*px)/cols-12,26,74):clamp((W-2*px)/cols-22,64,d.bw||138),bh=small?18:(W<560?44:52);
+  const N={};
+  d.nodes.forEach(n=>{const w=bw*(n.w||1),h=bh;
+    N[n.id]={x:px+w/2+n.x*(W-2*px-w),y:top+h/2+n.y*(H-top-bot-h),w,h}});
+  return {N,bw,bh}}
+function port(r,tx,ty){const dx=tx-r.x,dy=ty-r.y;if(!dx&&!dy)return[r.x,r.y];
+  const hw=r.w/2+3,hh=r.h/2+3,k=Math.min(dx?hw/Math.abs(dx):1e9,dy?hh/Math.abs(dy):1e9);return[r.x+dx*k,r.y+dy*k]}
+const fv=(v,S)=>typeof v==='function'?v(S||{}):v;
+
+function paint(g,d,L,W,H,st,small){
+  const S=st?st.S:null;
+  (d.zones||[]).forEach(z=>{const rs=z.ids.map(id=>L.N[id]),p=small?4:12;
+    const x0=Math.min(...rs.map(r=>r.x-r.w/2))-p,x1=Math.max(...rs.map(r=>r.x+r.w/2))+p,y0=Math.min(...rs.map(r=>r.y-r.h/2))-(small?4:16),y1=Math.max(...rs.map(r=>r.y+r.h/2))+(small?4:18);
+    const c=col[z.c||'muted'];g.rr(x0,y0,x1-x0,y1-y0,2,alpha(c,.05),alpha(c,.45),1,[4,4]);
+    if(!small){const lab=z.l.toUpperCase(),w=g.tw(lab,{s:9.5,m:true,w:600})+10;g.rr(x0+8,y0-7,w,14,0,col.panel);g.t(lab,x0+13,y0,{s:9.5,m:true,w:600,c,a:'left'})}});
+  (d.edges||[]).forEach(e=>{const o=e[2]||{};if(o.show&&!(S&&o.show(S)))return;const A=L.N[e[0]],B=L.N[e[1]];
+    const P1=port(A,B.x,B.y),P2=port(B,A.x,A.y);
+    g.ln(P1[0],P1[1],P2[0],P2[1],o.c?alpha(col[o.c],.7):col.line2,small?1:1.5,o.dash?[5,5]:null);
+    const l=fv(o.l,S);if(!small&&l&&W>=600){const mx=(P1[0]+P2[0])/2,my=(P1[1]+P2[1])/2,w=g.tw(l,{s:9.5,m:true,w:600})+8;
+      g.rr(mx-w/2,my-7,w,14,0,col.panel);g.t(l,mx,my,{s:9.5,m:true,w:600,c:o.c?col[o.c]:col.muted})}});
+  d.nodes.forEach(n=>{const r=L.N[n.id],x=r.x-r.w/2,y=r.y-r.h/2,c=col[n.c]||col.req;
+    if(small){if(n.stack)g.rr(x+3,y-3,r.w,r.h,2,col.panel,alpha(c,.35),1);g.rr(x,y,r.w,r.h,2,alpha(c,.16),c,1.2);
+      g.t(g.clip(n.s||fv(n.l,{}),r.w-4,{s:8.5,w:600}),r.x,r.y,{s:8.5,w:600,c:col.ink});return}
+    const down=S.down.has(n.id),dim=n.dim&&n.dim(S),cc=down||dim?col.muted:c,busy=!down&&n._busy>st.t;
+    if(n.stack)for(let k=2;k>=1;k--)g.rr(x+k*4,y-k*4,r.w,r.h,2,col.panel,alpha(cc,.35),1);
+    const fs=r.w<100?12:13.5,label=g.clip(fv(n.l,S),r.w-10,{s:fs,w:700}),sub=fv(n.sub,S);
+    g.box(x,y,r.w,r.h,label,cc,{s:fs,glow:busy,fill:down?col.panel2:null,dash:down||dim?[4,4]:null});
+    if(sub){g.rr(x+2,y+r.h/2+2,r.w-4,r.h/2-4,0,down?col.panel2:col.panel);g.t(g.clip(sub,r.w-10,{s:10.5,w:500}),r.x,y+r.h/2+10,{s:10.5,w:500,c:col.muted})}
+    if(n.new&&st.showNew)g.pill(x+r.w-4,y,'NEW',col.ad,col.on,{s:8,m:true,a:'right'});
+    if(down){g.rr(x+r.w/2-24,y+r.h/2-9,48,18,0,col.bad);g.t('DOWN',r.x,y+r.h/2,{s:10,m:true,w:700,c:col.on})}
+    if(n.cap&&!down){const L2=st.load(n.id),cap=fv(n.cap,S),f=L2/cap,mc=f<.7?col.ad:f<=1?col.slot:col.bad;
+      g.rr(x,y+r.h+5,r.w,4,0,col.panel2);g.rr(x,y+r.h+5,r.w*Math.min(1,f),4,0,mc);
+      g.t(L2.toFixed(1)+'/s'+(f>1?' · overloaded':''),x,y+r.h+16,{s:9.5,m:true,w:600,c:f>1?col.bad:col.muted,a:'left'})}
+    if(n.depth){const k=n.depth(S);for(let i=0;i<Math.min(k,10);i++)g.rr(x+4+i*9,y+r.h+6,7,9,0,col.slot);
+      if(k>10)g.t('+'+(k-10),x+98,y+r.h+11,{s:9.5,m:true,c:col.slot,a:'left'});if(k)g.t(k+' waiting',x+r.w,y+r.h+24,{s:9.5,m:true,c:col.slot,a:'right'})}});
+  if(S)S.flags.forEach(f=>{if(f.until<st.t)return;const r=L.N[f.id];g.pill(r.x,r.y-r.h/2-12,f.t,col[f.c]||f.c,col.on,{s:10,m:true})});
+}
+
+function Arch(s,ui,d,logEl){
+  const S=Object.assign({down:new Set(),flags:[],T:0},d.state?d.state():{});
+  const NN=Object.fromEntries(d.nodes.map(n=>[n.id,n]));d.nodes.forEach(n=>n._busy=0);
+  const flights=[],timers=[],hits={},ticks=[];d.nodes.forEach(n=>hits[n.id]=[]);
+  let ok=0,err=0,lat=[],rate=d.rate!=null?d.rate:2,acc=0;
+  const after=(sec,fn)=>timers.push({at:s.T+sec,fn});
+  const sleep=sec=>new Promise(r=>after(sec,r));
+  const load=id=>{const h=hits[id];let c=0;for(let i=h.length-1;i>=0&&h[i]>s.T-2;i--)c++;return c/2};
+  const msOf=id=>{const n=NN[id],base=fv(n.ms,S)||0;if(!n.cap)return base;const L=load(id),cap=fv(n.cap,S);return L<=cap?base:base*(1+(L-cap)/cap*3)};
+  const E=(d.edges||[]).map(e=>Object.assign({a:e[0],b:e[1]},e[2]||{}));
+  const edgeMs=(a,b)=>{const e=E.find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a));return e&&e.ms!=null?e.ms:1};
+  const flag=(id,t,c='slot')=>{if(t)S.flags.push({id,t,c,until:s.T+1.8});if(S.flags.length>30)S.flags.splice(0,10)};
+  const busy=(id,sec)=>{NN[id]._busy=Math.max(NN[id]._busy,s.T+sec)};
+  const fly=(a,b,label,c,o,r)=>new Promise((res,rej)=>{const ms=o.ms!=null?o.ms:edgeMs(a,b);if(r)r.ms+=ms;
+    flights.push({a,b,label,c:c||'req',st:s.T,dur:clamp(.36+ms/240,.36,1.15),
+      done(f){if(f.lost)return rej(new Error('down'));if(!o.nohit){hits[b].push(s.T);if(hits[b].length>300)hits[b].splice(0,150)}
+        const w=o.work!=null?o.work:msOf(b);if(r)r.ms+=w;const sec=clamp(w/160,0,1.4);busy(b,Math.max(.15,sec));after(sec,res)}})});
+  const ctx={S,ui,after,sleep,load,flag,busy,NN,
+    raw:(a,b,l,c,o={})=>fly(a,b,l,c,o,null),
+    set:(id,v)=>{v?S.down.add(id):S.down.delete(id)},
+    log:m=>{if(logEl)logEl.innerHTML='<b>Now</b>'+m},
+    every:(sec,fn)=>{const tick=()=>{fn();after(sec,tick)};after(sec,tick)},
+    tick:fn=>ticks.push(fn)};
+  const mkR=quiet=>{const r={ms:0,quiet,ctx,
+    hop:(a,b,l,c,o={})=>fly(a,b,quiet?null:l,c,o,r),
+    side:(a,b,l,c,o={})=>fly(a,b,quiet?null:l,c,o,null).catch(()=>{}),
+    wait:sec=>sleep(sec),
+    flag:(id,t,c)=>flag(id,quiet?null:t,c),
+    par:fns=>Promise.all(fns.map(fn=>{const b=mkR(quiet);return fn(b).then(()=>b.ms)})).then(a=>{r.ms+=Math.max(0,...a)})};return r};
+  const run=(fn,quiet)=>{const r=mkR(quiet);return Promise.resolve().then(()=>fn(r,S)).then(v=>{if(v==='skip')return;if(v===false){err++;return}
+    ok++;lat.push(r.ms);if(lat.length>100)lat.shift()},()=>{err++})};
+  ctx.run=run;
+  const pct=p=>{if(!lat.length)return'–';const a=[...lat].sort((x,y)=>x-y);return Math.round(a[Math.min(a.length-1,Math.floor(p/100*a.length))])+' ms'};
+  const sP50=ui.stat('p50 latency','req','–'),sP99=ui.stat('p99 latency','slot','–'),sOk=ui.stat('requests ok','ad'),sErr=ui.stat('failed','bad');
+  d.scen.filter(x=>x.btn).forEach(x=>ui.btn(x.btn,()=>{ctx.log(x.log);run(x.fn,false)}));
+  ui.slider('Background traffic',0,d.maxRate||10,rate,v=>rate=v,v=>v?v+' req/s':'off');
+  if(d.init)d.init(ctx);
+  const pool=d.scen.filter(x=>x.w);const tot=pool.reduce((a,x)=>a+x.w,0);
+  const pickW=()=>{let k=rnd()*tot;for(const x of pool){k-=x.w;if(k<0)return x}return pool[0]};
+  s.label(d.t+': a live diagram of requests moving between '+d.nodes.map(n=>fv(n.l,S)).join(', ')+'.');
+  s.frame((t,dt)=>{const {g,W,H}=s;S.T=t;
+    for(let i=timers.length-1;i>=0;i--)if(t>=timers[i].at){const f=timers[i].fn;timers.splice(i,1);f()}
+    if(pool.length){acc+=dt*rate;while(acc>=1){acc-=1;run(pickW().fn,true)}}
+    const L=layout(d,W,H);paint(g,d,L,W,H,{S,t,load,showNew:true});
+    for(let pass=0;pass<2;pass++)for(let i=flights.length-1;i>=0;i--){const f=flights[i],p=(t-f.st)/f.dur;
+      if(pass===0){if(!f.lost&&p>=.5&&S.down.has(f.b))f.lost=true;if(p>=1){flights.splice(i,1);f.done(f)}continue}
+      if((pass===1)!==true)continue;const A=L.N[f.a],B=L.N[f.b];const P1=port(A,B.x,B.y),P2=port(B,A.x,A.y);
+      if(f.lost&&p>.5){if(p<.97)g.x(lerp(P1[0],P2[0],.5),lerp(P1[1],P2[1],.5),7,col.bad);continue}
+      const q=ez(p),x=lerp(P1[0],P2[0],q),y=lerp(P1[1],P2[1],q),c=col[f.c]||f.c;
+      if(f.label)g.pill(x,y,f.label,c,col.on,{s:10.5,m:true});else g.rr(x-4,y-4,8,8,0,c)}
+    sP50(pct(50));sP99(pct(99));sOk(ok);sErr(err);ticks.forEach(fn=>fn(t));
+  });
+  return s}
+
+function thumb(cv,d){const W=cv.clientWidth||240,H=cv.clientHeight||96,dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);const g=mkG(c);paint(g,d,layout(d,W,H,true),W,H,null,true)}
+</script>
+<script>
+/* ================= the designs, simplest first ================= */
+const pickKey=(keys,wt)=>{let r=rnd()*wt.reduce((a,b)=>a+b,0);for(let i=0;i<keys.length;i++){r-=wt[i];if(r<0)return keys[i]}return keys[0]};
+const CLIENT={id:'c',l:'Clients',sub:'dashboard + players',c:'pop',stack:true};
+const DESIGNS=[
+/* ---------------- Beginner ---------------- */
+{id:'single-server',lv:'beginner',t:'Single server',s:'1 box',
+ aka:['all-in-one','one VM','VPS','single point of failure'],
+ one:`Your app and your database run on the same machine. One thing to deploy, one thing to pay for, and one thing that can take everything down.`,
+ body:`<p>Almost every project starts here: one virtual machine (an EC2 instance, a droplet, a box under a desk) runs the API code and the database together. A request comes in, the code queries the database over localhost, and the answer goes back. There's no network between the code and the data, so it's simple and surprisingly fast.</p><p>The catch is that everything shares one CPU, one disk and one power supply. A heavy report query slows down every login. A deploy restarts the only copy of the app, so users get errors until it's back. If the disk dies, so does the data, unless someone set up backups and actually tested restoring them.</p>`,
+ adds:['One server running the app code and the database together'],
+ when:['Prototypes, internal tools and demos','A few hundred users, where a few minutes of downtime is fine','You need to ship this week and learn what users actually do'],
+ watch:['<b>Single point of failure</b>: one crash means a full outage','Deploys mean downtime unless you plan around it','The app and the database fight over the same CPU and memory','Backups on the same disk as the data are not backups'],
+ good:['Automated daily backups stored somewhere else, plus a restore you have actually tried','A health-check URL and an uptime alert, so you hear about outages before customers do','The database listens on localhost only, never on a public port'],
+ ntv:`NTV360 is past this stage: the API, the database (RDS) and the Socket.IO server are separate pieces. You'll still see this design in side projects and small internal tools, and every other design here is compared against it.`,
+ terms:['latency','https','timeout','status-codes'],
+ words:[['SPOF','Single Point Of Failure: one part that takes everything down when it breaks'],['VM','Virtual Machine: a rented slice of a bigger computer']],
+ cap:`Turn up the traffic, then crash the server or deploy. Every request fails while the only copy is down.`,
+ h:250,cols:4,rate:2,
+ nodes:[{...CLIENT,l:'Browser',sub:'dashboard',x:0,y:.5,stack:false},{id:'app',l:'API code',sub:'same machine',c:'req',x:.58,y:.5,ms:4},{id:'db',l:'MySQL',sub:'same machine',c:'ad',x:1,y:.5,ms:10,cap:8}],
+ zones:[{ids:['app','db'],l:'One server · one VM',c:'req'}],
+ edges:[['c','app',{l:'HTTPS',ms:25}],['app','db',{l:'localhost',ms:.2}]],
+ scen:[{btn:'Load the device list',w:1,log:'The browser asks the server for devices. The API code reads MySQL over localhost, on the same machine, and sends the rows back.',
+   fn:async x=>{await x.hop('c','app','GET /devices');await x.hop('app','db','SELECT','ad');await x.hop('db','app','rows','ad');await x.hop('app','c','200 OK','ad')}}],
+ init(x){x.ui.toggle('Server crashes',false,v=>{x.set('app',v);x.set('db',v);x.log(v?'The machine is down. Every request fails and nothing can take over.':'Back up. Requests sent while it was down are simply lost; users had to retry.')});
+   x.ui.btn('Deploy new version',()=>{x.set('app',true);x.flag('app','restarting…','slot');x.log('A deploy restarts the only copy of the app. For a few seconds nobody can use it.');x.after(3,()=>{x.set('app',false);x.flag('app','v2 running','ad')})},true)}},
+
+{id:'three-tier',lv:'beginner',t:'Three-tier architecture',s:'3 tiers',ntvUses:true,
+ aka:['3-tier','n-tier','presentation / logic / data','client–server'],
+ one:`Split the system into three layers that each do one job: the screen people use, the API that holds the rules, and the database that keeps the data.`,
+ body:`<p>The <strong>presentation tier</strong> is what people see: the Angular dashboard in a browser, or the app on a player. It never talks to the database directly. The <strong>logic tier</strong> is the API. It checks who you are, validates input, applies the business rules and decides which queries to run. The <strong>data tier</strong> is the database, and only the API can reach it.</p><p>Because each tier only talks to its neighbour, you can change one without breaking the others: redesign the dashboard without touching SQL, or move the database to a bigger server without redeploying the frontend. The cost is that every request crosses the network twice, so what the API does per request (how many queries, how much data) decides how fast the whole thing feels.</p>`,
+ adds:['The frontend separated from the API','The database on its own server, reachable only by the API'],
+ when:['Almost every web or mobile product starts here','You want to deploy or scale the frontend, the API and the database separately','More than one client (dashboard, players, mobile) needs the same data'],
+ watch:['<b>N+1 queries</b>: one request quietly runs dozens of queries','List endpoints with no pagination that return all 6,000 rows','Business rules living only in the frontend, where anyone can bypass them','A database opened to the internet "just for debugging"'],
+ good:['Every list endpoint is paginated','Each request runs a small, predictable number of queries','The database only accepts connections from the API (security group, private subnet)','Validation lives in the API; the frontend repeats it only for convenience'],
+ ntv:`This is the core of NTV360: the Angular dashboard (presentation), the .NET Core API (logic) and RDS MySQL (data). The Raspberry Pi players are a second presentation tier calling the same API. Every later design adds something to this picture.`,
+ terms:['rest','n-plus-1','pagination','connection-pool','latency'],
+ words:[['Tier','a layer that runs on its own and talks to its neighbours over the network']],
+ cap:`Turn on the N+1 bug, or turn off pagination, and watch what a single request costs.`,
+ h:260,cols:4,rate:3,
+ nodes:[{...CLIENT,l:'Angular dashboard',s:'Client',sub:'presentation',x:0,y:.5,stack:false},{id:'api',l:'.NET Core API',s:'API',sub:'logic',c:'req',x:.5,y:.5,ms:4,cap:20},{id:'db',l:'MySQL (RDS)',s:'DB',sub:'data',c:'ad',x:1,y:.5,ms:10,cap:10}],
+ zones:[{ids:['c'],l:'Presentation',c:'pop'},{ids:['api'],l:'Logic',c:'req'},{ids:['db'],l:'Data',c:'ad'}],
+ edges:[['c','api',{l:'HTTPS · JSON',ms:25}],['api','db',{l:'SQL',ms:1}]],
+ state:()=>({n1:false,nopage:false}),
+ scen:[{btn:'Load device list',w:4,log:'The dashboard asks the API for one page of devices. The API runs one query and returns 50 rows.',
+   fn:async(x,S)=>{await x.hop('c','api',S.nopage?'GET /devices':'GET /devices?page=1');await x.hop('api','db',S.nopage?'SELECT * · 6,000 rows':'SELECT … LIMIT 50','ad',{work:S.nopage?140:10});
+     await x.hop('db','api',S.nopage?'6,000 rows':'50 rows','ad');
+     if(S.n1)for(let i=1;i<=5;i++){await x.hop('api','db','SELECT playlist #'+i,'slot');await x.hop('db','api','1 row','slot')}
+     await x.hop('api','c','200 OK','ad')}},
+  {btn:'Save a device',w:1,log:'A save goes through the API, which validates it and runs one UPDATE.',
+   fn:async x=>{await x.hop('c','api','PUT /devices/42');await x.hop('api','db','UPDATE','ad');await x.hop('db','api','1 row changed','ad');await x.hop('api','c','200 OK','ad')}}],
+ init(x){x.ui.toggle('N+1 bug',false,v=>{x.S.n1=v;x.log(v?'Now the API loads the list, then runs one extra query per device to fetch its playlist. Same page, six round trips.':'One query per page again.')});
+   x.ui.toggle('Pagination',true,v=>{x.S.nopage=!v;x.log(v?'Back to 50 rows per page.':'No pagination: every load reads and sends all 6,000 devices. Watch p99.')})}},
+
+{id:'reverse-proxy',lv:'beginner',t:'Reverse proxy, TLS & static files',s:'Front door',
+ aka:['NGINX','ALB','TLS termination','DNS','static hosting','front door'],
+ one:`Put one front door in front of the API. It handles HTTPS, serves the frontend files, and forwards API calls to servers the internet can't reach directly.`,
+ body:`<p>Before a browser can send anything, <strong>DNS</strong> turns the domain name into an IP address. That address belongs to a <strong>reverse proxy</strong> (NGINX, or a cloud load balancer like AWS ALB), not to the API. The proxy does the TLS handshake, decrypts the request and decides where it goes: files like <code>main.js</code> come straight from disk or storage, and <code>/api/*</code> calls are forwarded to the API over a private network.</p><p>That gives you one place to manage certificates, redirect HTTP to HTTPS, compress responses, add security headers and log every request. The API servers don't need public IP addresses at all, which removes a whole class of attacks.</p>`,
+ adds:['DNS pointing at a front door instead of the app server','A reverse proxy that terminates TLS','Static frontend files served without touching the API'],
+ when:['Any time something goes on the public internet','You want HTTPS handled in one place, not in every service','The frontend and the API should share one domain (no CORS headaches)'],
+ watch:['<b>Expired certificates</b>: every client fails on the same day. Automate renewal.','Proxy timeouts shorter than your slowest endpoint cause mysterious 502s and 504s','Not forwarding the real client IP (<code>X-Forwarded-For</code>), so logs and rate limits only see the proxy','Leaving the API port open to the internet too, which bypasses the proxy'],
+ good:['HTTPS everywhere, with plain HTTP redirecting to HTTPS','Certificates renew automatically (ACM, Let\'s Encrypt), with an expiry alert as backup','API servers in a private subnet, reachable only from the proxy','Static files with hashed names (<code>main.3f9a.js</code>) and long cache headers'],
+ ntv:`An Angular build is just static files, so a front door can serve them while API calls go on to the .NET API. The backend guide's HTTPS page covers the certificate side: all 6,000 players check the API's certificate, so an expired one cuts every one of them off at once.`,
+ terms:['https','cors','timeout','status-codes','anatomy'],
+ words:[['DNS','Domain Name System: turns a name into an IP address'],['Reverse proxy','a server that receives requests on behalf of other servers and forwards them'],['TLS termination','decrypting HTTPS at the proxy, so the servers behind it don\'t have to']],
+ cap:`Press "First visit" to see DNS, the TLS handshake and a static file. Then turn HTTPS off and watch who else can read the traffic.`,
+ h:330,cols:5,rate:2,
+ nodes:[{...CLIENT,l:'Browser',sub:'dashboard',x:0,y:.45,stack:false},{id:'dns',l:'DNS',sub:'Route 53',c:'pi',x:.24,y:0,ms:2},{id:'spy',l:'Wi-Fi snooper',sub:'same network',c:'bad',x:.24,y:1,dim:S=>S.https},
+  {id:'px',l:'Reverse proxy',sub:'TLS ends here',c:'pi',x:.5,y:.45,ms:1,new:true},{id:'files',l:'Static files',sub:'Angular build',c:'pop',x:.5,y:1,ms:.5,new:true},
+  {id:'api',l:'.NET API',sub:'private network',c:'req',x:.76,y:.45,ms:4},{id:'db',l:'MySQL',c:'ad',x:1,y:.45,ms:10}],
+ edges:[['c','dns',{l:'lookup',ms:12,dash:true}],['c','px',{l:S=>S.https?'HTTPS :443':'HTTP :80',ms:25}],['px','files',{ms:.3}],['px','api',{l:'private',ms:1}],['api','db',{ms:1}],['c','spy',{dash:true,c:'bad',show:S=>!S.https}]],
+ state:()=>({https:true,leaks:0}),
+ scen:[{btn:'First visit',w:0,log:'DNS turns the name into the proxy\'s address. The browser and proxy do a TLS handshake (certificate check, key exchange). Then the app\'s files come from the proxy without touching the API.',
+   fn:async(x,S)=>{await x.hop('c','dns','dashboard.example.com?','pi');await x.hop('dns','c','→ proxy IP','pi');
+     if(S.https){await x.hop('c','px','TLS hello','pi');await x.hop('px','c','certificate ✓','ad');}
+     await x.hop('c','px','GET /main.js',S.https?'req':'bad');leak(x,S,'GET /main.js');await x.hop('px','files','read file','pop');await x.hop('files','px','main.js','pop');await x.hop('px','c','200 · main.js','ad')}},
+  {btn:'API call',w:1,log:'API calls go to the same front door. The proxy forwards /api/* to the API on the private network.',
+   fn:async(x,S)=>{await x.hop('c','px','GET /api/devices',S.https?'req':'bad');leak(x,S,'Bearer eyJhbGci…');await x.hop('px','api','GET /devices');await x.hop('api','db','SELECT','ad');await x.hop('db','api','rows','ad');await x.hop('api','px','200','ad');await x.hop('px','c','200 OK','ad')}}],
+ init(x){x.ui.toggle('HTTPS',true,v=>{x.S.https=v;x.log(v?'Encrypted again. The snooper sees scrambled bytes and the server\'s name, nothing else.':'Plain HTTP: anyone on the same Wi-Fi can read every request, including the login token in the header.')});
+   const sL=x.ui.stat('readable by snooper','bad');x.tick(()=>sL(x.S.leaks))}},
+
+/* ---------------- Mid ---------------- */
+{id:'load-balanced',lv:'mid',t:'Load balancer + stateless servers',s:'Scale out',
+ aka:['horizontal scaling','scale out','ALB','health check','stateless','auto scaling'],
+ one:`Run several identical copies of the API behind a load balancer, so traffic is shared and one crashed copy doesn't take the system down.`,
+ body:`<p>When one API server runs out of CPU you can buy a bigger one (<strong>vertical scaling</strong>) or add more of the same (<strong>horizontal scaling</strong>). Horizontal wins in the long run: there's no ceiling, and losing one copy is a blip instead of an outage. A <strong>load balancer</strong> sits in front, spreads requests across the copies, and sends each one a <strong>health check</strong> every few seconds so it can stop routing to any that stop answering.</p><p>This only works if the servers are <strong>stateless</strong>, meaning any copy can handle any request. If a server keeps logins, uploads or caches in its own memory, the next request may land on a copy that has never heard of you. Keep that state in the token, the database or a shared store like Redis.</p>`,
+ adds:['A load balancer in front of the API','Two or more identical API instances','Health checks that pull dead instances out of rotation'],
+ when:['One server can no longer handle peak traffic','You need deploys and crashes without downtime','Traffic is spiky and you want servers added automatically (auto scaling)'],
+ watch:['Sessions or files kept in one server\'s memory or disk','Health checks that only test "the process is running", not "it can reach the database"','The shared database quietly becoming the new bottleneck','More instances means more connection pools: check the database\'s connection limit'],
+ good:['Any instance can serve any request (stateless)','Health checks every few seconds; dead instances removed automatically','Rolling deploys, one instance at a time, so users never notice','At least two instances in two availability zones'],
+ ntv:`If the .NET API ever runs as several instances (for example on ECS behind an ALB), JWT auth already helps: the token says who you are, so any instance can check it. Anything kept in server memory, like an in-process cache or a half-finished upload, would need to move to a shared place.`,
+ terms:['load-balancer','connection-pool','auth','throughput','cold-start'],
+ words:[['Horizontal scaling','adding more machines'],['Vertical scaling','making one machine bigger'],['Stateless','the server keeps nothing between requests'],['AZ','Availability Zone: a separate data centre inside one AWS region']],
+ cap:`Crash API #2 with health checks off, then on. Then keep logins in server memory and watch requests land on the wrong copy.`,
+ h:330,cols:4,rate:5,
+ nodes:[{...CLIENT,x:0,y:.5},{id:'lb',l:'Load balancer',sub:'ALB',c:'pi',x:.3,y:.5,ms:1,new:true},
+  {id:'a1',l:'API #1',sub:S=>sub(S,'a1'),c:'req',x:.64,y:0,ms:4,cap:5},{id:'a2',l:'API #2',sub:S=>sub(S,'a2'),c:'req',x:.64,y:.5,ms:4,cap:5,new:true},{id:'a3',l:'API #3',sub:S=>sub(S,'a3'),c:'req',x:.64,y:1,ms:4,cap:5,new:true},
+  {id:'db',l:'MySQL',c:'ad',x:1,y:.5,ms:8,cap:20}],
+ edges:[['c','lb',{l:'HTTPS',ms:25}],['lb','a1'],['lb','a2'],['lb','a3'],['a1','db'],['a2','db'],['a3','db']],
+ state:()=>({rr:0,hc:true,mem:false,sess:{},healthy:{a1:true,a2:true,a3:true}}),
+ scen:[{btn:'Send a request',w:1,log:'The load balancer picks the next healthy instance in turn. Any instance can answer, because none of them keeps anything between requests.',
+   fn:async(x,S)=>{const u='user'+(1+Math.floor(rnd()*3));await x.hop('c','lb','GET /devices');
+     let pool=['a1','a2','a3'];if(S.hc)pool=pool.filter(i=>S.healthy[i]);const a=pool[S.rr++%pool.length];
+     await x.hop('lb',a,'GET /devices');
+     if(S.mem){const home=S.sess[u];S.sess[u]=a;if(home&&home!==a){x.ctx.flag(a,'401 · who is '+u+'?','bad');await x.hop(a,'lb','401','bad');await x.hop('lb','c','401 · log in again','bad');return false}}
+     await x.hop(a,'db','SELECT','ad');await x.hop('db',a,'rows','ad');await x.hop(a,'lb','200','ad');await x.hop('lb','c','200 OK','ad')}}],
+ init(x){const S=x.S;
+   x.every(1.5,()=>{if(!S.hc)return;['a1','a2','a3'].forEach(a=>x.raw('lb',a,null,'muted',{ms:.5,nohit:true,work:0}).then(()=>{S.healthy[a]=true},()=>{if(S.healthy[a])x.flag('lb','health check: '+a.replace('a','API #')+' failed','bad');S.healthy[a]=false}))});
+   x.ui.toggle('API #2 crashes',false,v=>{x.set('a2',v);x.log(v?(S.hc?'API #2 is down. The next health check fails and the load balancer stops sending it traffic. A few requests fail in between.':'API #2 is down, and without health checks the load balancer keeps sending it every third request.'):'API #2 is back. Once a health check passes, it gets traffic again.')});
+   x.ui.toggle('Health checks',true,v=>{S.hc=v;if(!v)S.healthy={a1:true,a2:true,a3:true}});
+   x.ui.toggle('Logins kept in server memory',false,v=>{S.mem=v;S.sess={};x.log(v?'Each server remembers logins in its own memory. The next request often lands on a different copy, which has never seen this user: 401.':'Stateless again: the token carries the identity, so any copy can serve any user.')})}},
+
+{id:'cache-aside',lv:'mid',t:'Cache in front of the database',s:'+ cache',
+ aka:['cache-aside','lazy loading','Redis','ElastiCache','cache invalidation','hot data'],
+ one:`Keep copies of frequently read data in a fast in-memory store, so most reads never reach the database.`,
+ body:`<p>Most systems read the same data far more often than they change it. With <strong>cache-aside</strong>, the API checks Redis first. On a <strong>hit</strong> it answers in about a millisecond. On a <strong>miss</strong> it reads the database, stores the result in Redis with a <strong>TTL</strong>, and answers. The next request for the same key is a hit.</p><p>The hard part isn't adding the cache, it's keeping it honest. When the data changes, the cached copy is wrong. The usual rule: write to the database, then <strong>delete</strong> the cache key so the next read fetches the new value. The TTL is your safety net for the times you forget.</p>`,
+ adds:['Redis (or similar) between the API and the database','Reads: check the cache, fall back to the database, fill the cache','Writes: update the database, then delete the cached key'],
+ when:['The database is busy answering the same reads over and over','Some data is read thousands of times per change (playlists, settings, device configs)','You need faster reads and can live with data a few seconds old'],
+ watch:['Forgetting to invalidate on write: users see old data until the TTL runs out','Caching data that\'s rarely read twice: low hit ratio, all cost','A popular key expiring under load, so every request misses at once (thundering herd)','Treating the cache as the source of truth. It can be wiped at any moment.'],
+ good:['Hit ratio on a dashboard (aim for 80% or more on hot paths)','Every cached key has a TTL','Writes delete or update the key in the same code path','The app still works, just slower, when the cache is down'],
+ ntv:`Player playlists are a natural fit: thousands of players ask for the same few playlists, and they only change when someone edits them in the dashboard. The players' local SQLite copy is already a cache on the device; a server-side cache would protect RDS the same way.`,
+ terms:['cache','ttl','thundering-herd','eventual-consistency','percentiles'],
+ words:[['Hit / miss','found in the cache / had to go to the database'],['Invalidation','removing a cached copy because the real data changed'],['Hit ratio','hits divided by all reads']],
+ cap:`With the cache off, raise the traffic until the database meter turns red. Then switch the cache on. Try forgetting to delete on write.`,
+ h:300,cols:4,rate:6,maxRate:14,
+ nodes:[{...CLIENT,x:0,y:.5},{id:'api',l:'.NET API',c:'req',x:.4,y:.5,ms:3,cap:60},{id:'cache',l:'Redis',sub:'cache',c:'slot',x:1,y:0,ms:1,new:true,dim:S=>!S.on},{id:'db',l:'MySQL (RDS)',sub:'source of truth',c:'ad',x:1,y:1,ms:12,cap:4}],
+ edges:[['c','api',{l:'HTTPS',ms:25}],['api','cache',{l:'GET · SET · DEL'}],['api','db',{l:'SQL'}]],
+ state:()=>({on:false,ttl:6,st:{},ver:{},forget:false,hist:[],stale:0}),
+ scen:[{btn:'Read a playlist',w:9,log:'The API asks Redis first. A hit answers in about a millisecond. A miss goes to MySQL, then stores the result in Redis with a TTL.',
+   fn:async(x,S)=>{const k=pickKey('ABCDEF',[34,22,15,11,9,9]),key='playlist:'+k;await x.hop('c','api','GET '+key);
+     if(S.on){await x.hop('api','cache','GET '+key,'slot');const e=S.st[k];
+       if(e&&e.exp>S.T){S.hist.push(1);if(e.v<(S.ver[k]||0)){S.stale++;x.ctx.flag('cache','stale '+key+'!','bad');await x.hop('cache','api','HIT · old value','bad');await x.hop('api','c','200 · old value','bad');return}
+         await x.hop('cache','api','HIT','ad');await x.hop('api','c','200 OK','ad');return}
+       S.hist.push(0);await x.hop('cache','api','MISS','slot')}
+     await x.hop('api','db','SELECT','ad');await x.hop('db','api','rows','ad');
+     if(S.on){const v=S.ver[k]||0;x.side('api','cache','SET '+key,'slot').then(()=>{S.st[k]={exp:S.T+S.ttl,v}})}
+     await x.hop('api','c','200 OK','ad')}},
+  {btn:'Edit a playlist',w:1,log:'A write updates MySQL, then deletes the cached key so the next read fetches the new version.',
+   fn:async(x,S)=>{const k=pickKey('ABCDEF',[34,22,15,11,9,9]),key='playlist:'+k;await x.hop('c','api','PUT '+key);await x.hop('api','db','UPDATE','ad');S.ver[k]=(S.ver[k]||0)+1;await x.hop('db','api','ok','ad');
+     if(S.on&&!S.forget){await x.hop('api','cache','DEL '+key,'slot');delete S.st[k]}await x.hop('api','c','200 OK','ad')}}],
+ init(x){const S=x.S;
+   x.ui.toggle('Cache',false,v=>{S.on=v;S.st={};x.log(v?'Cache on. The first read of each playlist misses, then the hits take over and the database meter drops.':'No cache: every read goes to MySQL.')});
+   x.ui.slider('TTL',1,15,S.ttl,v=>S.ttl=v,v=>v+' s');
+   x.ui.toggle('Forget to delete on write',false,v=>{S.forget=v;x.log(v?'Writes update MySQL but leave the old copy in Redis. Readers get the old value until the TTL expires.':'Writes delete the cached key again.')});
+   const sH=x.ui.stat('cache hit ratio','ad','–'),sD=x.ui.stat('db load','ad','0/s'),sS=x.ui.stat('stale reads','bad');
+   x.tick(()=>{if(S.hist.length>40)S.hist.splice(0,S.hist.length-40);sH(S.on&&S.hist.length?Math.round(100*S.hist.reduce((a,b)=>a+b,0)/S.hist.length)+'%':'–');sD(x.load('db').toFixed(1)+'/s');sS(S.stale)})}},
+
+{id:'read-replicas',lv:'mid',t:'Read replicas',s:'+ replicas',
+ aka:['primary / replica','replication lag','read scaling','RDS read replica','read-your-writes'],
+ one:`Keep extra copies of the database that only serve reads. The primary takes every write and streams the changes to the replicas.`,
+ body:`<p>A cache helps when the same rows are read again and again. When reads are varied (search, filtered lists, reports), you need more database capacity for reads. A <strong>read replica</strong> is a copy that follows the <strong>primary</strong>: every write lands on the primary, then gets replayed on each replica a moment later. The API sends writes to the primary and spreads reads across the replicas.</p><p>That "moment later" is <strong>replication lag</strong>, usually milliseconds, sometimes seconds under load. A user who saves a form and immediately reloads may read from a replica that hasn't caught up and see their change vanish. The common fix is <em>read-your-own-writes</em>: right after a user writes, send their reads to the primary for a short while.</p>`,
+ adds:['One or more replicas following the primary','Writes go to the primary, reads to the replicas','A second, read-only connection string in the API'],
+ when:['Database CPU is high and most of the work is reads','Reports and dashboards slow down everyday traffic','You want a warm copy ready to promote if the primary dies'],
+ watch:['Replication lag: "I saved it and it disappeared"','Code that writes, then immediately reads back from a replica','Replicas do nothing for write-heavy workloads','A replica is not a backup: a bad DELETE replicates too'],
+ good:['Replication lag is monitored and alerted on','Read-after-write paths go to the primary','Heavy reports run on a replica, never on the primary','Promoting a replica has been rehearsed before you need it'],
+ ntv:`RDS MySQL supports read replicas in a few clicks. Heavy dashboard pages, like reports across thousands of devices, are good candidates to read from a replica so they don't slow down player check-ins writing to the primary.`,
+ terms:['eventual-consistency','race-condition','connection-pool','throughput'],
+ words:[['Primary','the one copy that accepts writes'],['Replica','a read-only copy that replays the primary\'s changes'],['Replication lag','how far behind a replica is']],
+ cap:`Raise the lag and press "Save, then reload". Then turn on read-your-own-writes. Send every read to the primary to see why replicas exist.`,
+ h:320,cols:4,rate:6,maxRate:14,
+ nodes:[{...CLIENT,x:0,y:.5},{id:'api',l:'.NET API',c:'req',x:.34,y:.5,ms:3,cap:60},{id:'pri',l:'Primary',sub:'all writes',c:'ad',x:.68,y:.5,ms:10,cap:4},
+  {id:'r1',l:'Replica 1',sub:S=>'reads · v'+S.rv.r1,c:'ad',x:1,y:0,ms:10,cap:4,new:true},{id:'r2',l:'Replica 2',sub:S=>'reads · v'+S.rv.r2,c:'ad',x:1,y:1,ms:10,cap:4,new:true}],
+ edges:[['c','api',{l:'HTTPS',ms:25}],['api','pri',{l:'writes'}],['api','r1',{l:'reads'}],['api','r2',{l:'reads'}],['pri','r1',{dash:true,c:'slot'}],['pri','r2',{dash:true,c:'slot'}]],
+ state:()=>({lag:1.5,ver:0,rv:{r1:0,r2:0},ryw:false,all:false,stale:0,rr:0}),
+ scen:[{btn:'Read',w:8,log:'Reads go to a replica, taking turns, so the primary is free for writes.',
+   fn:async(x,S)=>{const rep=S.all?'pri':['r1','r2'][S.rr++%2];await x.hop('c','api','GET /devices');await x.hop('api',rep,'SELECT','ad');await x.hop(rep,'api','rows','ad');await x.hop('api','c','200 OK','ad')}},
+  {btn:'Write',w:2,log:'Writes always go to the primary. It then ships the change to each replica, which arrives after the replication lag.',
+   fn:async(x,S)=>{await write(x,S)}},
+  {btn:'Save, then reload',w:0,log:'Save a new name, then read it straight back. If the read lands on a replica that hasn\'t caught up, the user sees the old name.',
+   fn:async(x,S)=>{const v=await write(x,S);const rep=S.ryw||S.all?'pri':['r1','r2'][S.rr++%2];
+     await x.hop('c','api','GET /devices/42');await x.hop('api',rep,'SELECT','ad');
+     if(rep!=='pri'&&S.rv[rep]<v){S.stale++;x.flag(rep,'still v'+S.rv[rep]+', not v'+v,'bad');await x.hop(rep,'api','old name','bad');await x.hop('api','c','200 · old name ✗','bad');return}
+     await x.hop(rep,'api','v'+v,'ad');await x.hop('api','c','200 · new name ✓','ad')}}],
+ init(x){const S=x.S;
+   x.ui.slider('Replication lag',0,4,S.lag,v=>S.lag=v,v=>v+' s',.5);
+   x.ui.toggle('Read your own writes from primary',false,v=>{S.ryw=v;x.log(v?'Right after a write, that user\'s next read goes to the primary, which always has the latest value.':'Reads after a write go to a replica again.')});
+   x.ui.toggle('Send all reads to the primary',false,v=>{S.all=v;x.log(v?'No replicas in use: every read and write hits the primary. Watch its meter.':'Reads spread across replicas again.')});
+   const sP=x.ui.stat('primary load','ad','0/s'),sS=x.ui.stat('stale reads','bad');x.tick(()=>{sP(x.load('pri').toFixed(1)+'/s');sS(S.stale)})}},
+
+{id:'cdn-storage',lv:'mid',t:'Object storage + CDN',s:'+ CDN',
+ aka:['S3','CloudFront','CDN','edge cache','signed URL','origin','static assets'],
+ one:`Keep big files (videos, images, builds) in object storage, and let a CDN serve copies from servers close to whoever is downloading them.`,
+ body:`<p>APIs are good at small JSON answers and bad at pushing 80 MB videos. If downloads go through the API, each one ties up an API worker and its bandwidth for seconds or minutes. Instead, store files in <strong>object storage</strong> (S3) and give the client a URL. A <strong>CDN</strong> (CloudFront) sits in front with servers in many cities. It keeps copies of popular files and only goes back to S3, the <strong>origin</strong>, on a miss.</p><p>The API's job shrinks to "here's what to play, and here are the URLs". For private content, the API hands out <strong>signed URLs</strong> that expire, so only the right client can download the file, and only for a while.</p>`,
+ adds:['Files live in S3, not on API servers','A CDN serving copies from nearby edge locations','The API returns URLs instead of file bytes'],
+ when:['Clients download large or repeated files: video, images, firmware, app builds','Users or devices are spread across a country or the world','File traffic is starting to compete with API traffic'],
+ watch:['Streaming files through the API "just for auth". Use signed URLs instead.','Public buckets by accident. Default to private.','Overwriting a file under the same name while the CDN still serves the old copy. Use versioned names.','CDN and transfer costs when every device downloads everything at once'],
+ good:['API responses stay small; big bytes never pass through the API','Content files have versioned names and long cache times','Buckets are private; access is through signed URLs or the CDN','High CDN hit ratio, little origin traffic'],
+ ntv:`Players across the USA downloading the same ad videos is the textbook case for a CDN. The API decides what each player should play; the bytes should come from the nearest edge, not from the API server. If downloads ever slow the API down, this is the design to compare against.`,
+ terms:['cache','ttl','throughput','latency','auth'],
+ words:[['CDN','Content Delivery Network: servers in many places that cache your files near users'],['Origin','where the CDN fetches a file it doesn\'t have (here, S3)'],['Signed URL','a link with an expiring signature, so only its holder can download']],
+ cap:`Download content a few times and watch the CDN warm up. Then send files through the API and watch its meter and p99.`,
+ h:320,cols:4,rate:2,maxRate:6,
+ nodes:[{id:'p',l:'Players',sub:'×6,000 · USA',c:'slot',x:0,y:.5,stack:true},{id:'api',l:'.NET API',c:'req',x:.45,y:0,ms:4,cap:6},{id:'db',l:'MySQL',c:'ad',x:1,y:0,ms:8},
+  {id:'cdn',l:'CDN edge',sub:'CloudFront',c:'pi',x:.45,y:1,ms:2,new:true,dim:S=>S.via},{id:'s3',l:'Object storage',sub:'S3 bucket',c:'ad',x:1,y:1,ms:6,new:true}],
+ edges:[['p','api',{l:'JSON',ms:30}],['api','db'],['p','cdn',{l:'file bytes',ms:8,show:S=>!S.via}],['cdn','s3',{l:'on a miss',ms:40,show:S=>!S.via}],['api','s3',{l:'file bytes',ms:20,dash:true,c:'bad',show:S=>S.via}]],
+ state:()=>({via:false,cached:new Set(),origin:0,hit:0,req:0}),
+ scen:[{btn:'Download content',w:1,log:'The player asks the API for its playlist and gets back URLs. The video itself comes from the nearest CDN edge, which only goes to S3 if it doesn\'t have a copy.',
+   fn:async(x,S)=>{await x.hop('p','api','GET playlist');await x.hop('api','db','SELECT','ad');await x.hop('db','api','rows','ad');await x.hop('api','p',S.via?'playlist':'playlist + URLs','ad');
+     const f=pickKey(['ad-1.mp4','ad-2.mp4','promo.mp4','menu.png','ad-3.mp4'],[30,25,20,15,10]);S.req++;
+     if(S.via){await x.hop('p','api','GET '+f);await x.hop('api','s3','GET '+f,'ad');await x.hop('s3','api',f+' · 80 MB','ad',{ms:150,work:300});await x.hop('api','p',f+' · 80 MB','ad',{ms:300});return}
+     await x.hop('p','cdn','GET '+f,'pi');
+     if(S.cached.has(f)){S.hit++;await x.hop('cdn','p','HIT · '+f,'ad',{ms:40});return}
+     S.origin++;await x.hop('cdn','s3','MISS · '+f,'slot');await x.hop('s3','cdn',f,'ad',{ms:120});S.cached.add(f);await x.hop('cdn','p',f,'ad',{ms:40})}}],
+ init(x){const S=x.S;
+   x.ui.toggle('Send files through the API',false,v=>{S.via=v;x.log(v?'Every video now flows through the API: S3 to API, API to player. Each download keeps the API busy for its whole length.':'Back to URLs: the API only sends JSON, and the CDN moves the bytes.')});
+   x.ui.btn('Clear CDN cache',()=>{S.cached.clear();x.log('A fresh deploy or invalidation empties the edge. The next request for each file goes back to S3.')},true);
+   const sA=x.ui.stat('api load','req','0/s'),sO=x.ui.stat('origin fetches','slot'),sC=x.ui.stat('cdn hit ratio','ad','–');
+   x.tick(()=>{sA(x.load('api').toFixed(1)+'/s');sO(S.origin);sC(S.hit+S.origin?Math.round(100*S.hit/(S.hit+S.origin))+'%':'–')})}},
+
+{id:'async-queue',lv:'mid',t:'Queue + background workers',s:'+ queue',
+ aka:['SQS','job queue','worker','202 Accepted','async processing','visibility timeout'],
+ one:`When a request asks for slow work, put a job on a queue, answer right away, and let background workers do the work at their own pace.`,
+ body:`<p>Some work takes seconds or minutes: building a report, transcoding a video, notifying 6,000 devices. If the API does it inside the request, the user stares at a spinner, the request may hit a timeout, and every slow request holds an API worker hostage. Instead, the API writes a small <strong>job</strong> message to a <strong>queue</strong> (SQS, RabbitMQ, a Redis list) and immediately answers <code>202 Accepted</code>. <strong>Workers</strong> pull jobs, do the work and save the result.</p><p>Queues also absorb spikes: 500 jobs arriving at once wait in line instead of crushing the database. And if a worker crashes mid-job, the message reappears after a <strong>visibility timeout</strong> and another worker retries it. That's why jobs must be safe to run twice.</p>`,
+ adds:['A queue between the API and the slow work','Worker processes that take jobs and run them','A way to tell the client the job is done (polling or a push)'],
+ when:['Anything slower than about a second that the user doesn\'t need to wait for','Bursty work that would overload the database if done all at once','Work that has to survive a crash and be retried'],
+ watch:['Jobs that aren\'t idempotent: a retry charges twice or sends two emails','No dead-letter queue, so a broken message retries forever','Nobody watching queue depth while it grows for hours','Losing the "it\'s done" signal, so users never see the result'],
+ good:['The API answers 202 with a job ID in milliseconds','Queue depth and age of the oldest message on a dashboard, with alerts','Every job is idempotent (safe to process twice)','Failed jobs land in a dead-letter queue that someone actually checks'],
+ ntv:`Proof-of-play reports, bulk playlist pushes and screenshot processing are the kind of work that fits here. The backend guide's "Message queue & async jobs" page covers the 202 pattern in detail.`,
+ terms:['async-queue','idempotency','backpressure','timeout','retry-backoff'],
+ words:[['Job','a small message describing work to be done'],['Visibility timeout','how long a taken job stays hidden before it\'s retried'],['DLQ','Dead-Letter Queue: where jobs go after failing too many times']],
+ cap:`Request a few reports, then switch to doing the work inside the request and compare p99. Make workers crash to see jobs come back.`,
+ h:330,cols:4,rate:1,maxRate:4,
+ nodes:[{...CLIENT,l:'Dashboard',sub:'',x:0,y:.2,stack:false},{id:'api',l:'.NET API',c:'req',x:.34,y:.2,ms:4},{id:'q',l:'Queue',sub:'SQS',c:'slot',x:.68,y:.2,ms:1,new:true,depth:S=>S.q.length,dim:S=>S.inline},
+  {id:'w1',l:'Worker 1',sub:S=>S.wk.w1?'job #'+S.wk.w1:'idle',c:'req',x:1,y:0,ms:2,new:true},{id:'w2',l:'Worker 2',sub:S=>S.wk.w2?'job #'+S.wk.w2:'idle',c:'req',x:1,y:.62,ms:2,new:true},
+  {id:'db',l:'MySQL',c:'ad',x:.5,y:1,ms:10}],
+ edges:[['c','api',{l:'HTTPS',ms:25}],['api','q',{l:'send job'}],['q','w1'],['q','w2'],['w1','db'],['w2','db'],['api','db',{l:'work inline',dash:true,c:'bad',show:S=>S.inline}]],
+ state:()=>({q:[],n:0,inline:false,crash:false,done:0,wk:{w1:0,w2:0}}),
+ scen:[{btn:'Request a report',w:1,log:'The API puts a job on the queue and answers 202 Accepted straight away. A free worker picks the job up, builds the report and saves it.',
+   fn:async(x,S)=>{const id=++S.n;await x.hop('c','api','POST /reports');
+     if(S.inline){await x.hop('api','db','build report…','ad',{work:2400});await x.hop('db','api','report','ad');S.done++;await x.hop('api','c','200 · report','ad');return}
+     await x.hop('api','q','job #'+id,'slot');S.q.push(id);await x.hop('api','c','202 · job #'+id,'ad')}}],
+ init(x){const S=x.S;
+   x.every(.3,()=>['w1','w2'].forEach(w=>{if(S.wk[w]||S.down.has(w)||!S.q.length)return;const id=S.q.shift();S.wk[w]=id;
+     x.raw('q',w,'job #'+id,'slot').then(()=>{x.busy(w,1.6);return x.sleep(1.6)}).then(()=>{
+       if(S.crash&&rnd()<.4){x.set(w,true);x.flag(w,'crashed on #'+id,'bad');S.wk[w]=0;x.after(1.2,()=>x.set(w,false));x.after(3,()=>{S.q.unshift(id);x.flag('q','#'+id+' visible again','slot')});return}
+       return x.raw(w,'db','INSERT result','ad').then(()=>x.raw('db',w,null,'ad')).then(()=>x.raw(w,'q','delete #'+id,'muted',{nohit:true})).then(()=>{S.done++;S.wk[w]=0})}).catch(()=>{S.wk[w]=0})}));
+   x.ui.toggle('Do the work inside the request',false,v=>{S.inline=v;x.log(v?'No queue: the API builds the report while the user waits. Every request now takes seconds. Watch p99.':'Back to the queue: the API answers in milliseconds and workers do the heavy part.')});
+   x.ui.toggle('Workers crash sometimes',false,v=>{S.crash=v;x.log(v?'Some workers now crash mid-job. The job was never deleted, so after the visibility timeout it reappears and another worker retries it.':'Workers are stable again.')});
+   const sQ=x.ui.stat('queue depth','slot'),sD=x.ui.stat('reports done','ad');x.tick(()=>{sQ(S.q.length);sD(S.done)})}},
+
+{id:'offline-first',lv:'mid',t:'Offline-first devices',s:'Offline-first',ntvUses:true,
+ aka:['local-first','store and forward','sync','SQLite on device','edge'],
+ one:`Devices keep a local copy of what they need and run from it. The network is only for syncing, so an outage pauses updates instead of stopping the device.`,
+ body:`<p>A screen in a store can't go blank because the Wi-Fi dropped or the API is mid-deploy. In an <strong>offline-first</strong> design, the device stores its playlist, media and settings locally (SQLite, files on disk) and plays from that copy. A background <strong>sync</strong> asks the server for changes every so often, ideally only what changed since the last sync, and updates the local copy.</p><p>When a sync fails, the device keeps going with what it has and retries with <strong>backoff</strong> and <strong>jitter</strong>, so 6,000 devices coming back online don't all hit the API in the same second. Anything the device needs to report (plays, errors) is queued locally and uploaded once the connection is back.</p>`,
+ adds:['A local database on the device','Playback that reads only local data','Background sync with retry, backoff and jitter'],
+ when:['Devices on unreliable networks: stores, vehicles, kiosks','The device must keep working through server outages and deploys','Thousands of devices would otherwise ask the server for everything, all the time'],
+ watch:['Sync storms: every device retrying at the same moment after an outage','Local storage filling up with old media','Devices quietly running stale content for weeks without anyone noticing','Clock drift on devices breaking schedules and "changes since" timestamps'],
+ good:['Each device reports its last successful sync, and the dashboard shows it','Retries use exponential backoff with jitter','Sync is incremental ("changes since X"), not a full download','Local reports are buffered, uploaded later, and safely de-duplicated'],
+ ntv:`This is how NTV360 players already work: each Raspberry Pi keeps a local copy in SQLite and plays from it, so a short API outage doesn't blank the screen. The interesting questions are at the edges: how fast do changes reach devices, and what happens when 6,000 of them reconnect at once?`,
+ terms:['retry-backoff','thundering-herd','idempotency','eventual-consistency','ttl'],
+ words:[['Sync','bringing the local copy up to date with the server'],['Incremental sync','downloading only what changed since the last sync']],
+ cap:`Cause an API outage. With a local copy, playback carries on; without one, it stops. Watch the sync retries back off.`,
+ h:300,cols:4,rate:2,maxRate:6,
+ nodes:[{id:'pl',l:'Player app',sub:'Node.js',c:'slot',x:0,y:0},{id:'lite',l:'SQLite',sub:'local copy',c:'slot',x:0,y:1,ms:1,new:true,dim:S=>S.direct},{id:'api',l:'.NET API',c:'req',x:.62,y:0,ms:4},{id:'db',l:'MySQL',c:'ad',x:1,y:0,ms:10}],
+ zones:[{ids:['pl','lite'],l:'Raspberry Pi',c:'slot'},{ids:['api','db'],l:'AWS',c:'req'}],
+ edges:[['pl','lite',{l:'local',ms:.1}],['pl','api',{l:'HTTPS',ms:40}],['api','db']],
+ state:()=>({direct:false,last:0,back:2}),
+ scen:[{btn:'Play next item',w:1,log:'The player reads the next item from its local SQLite copy. No network involved.',
+   fn:async(x,S)=>{if(S.direct){await x.hop('pl','api','GET next item');await x.hop('api','db','SELECT','ad');await x.hop('db','api','row','ad');await x.hop('api','pl','ad-2.mp4','ad');return}
+     await x.hop('pl','lite','next item?','slot');await x.hop('lite','pl','ad-2.mp4','ad')}}],
+ init(x){const S=x.S;
+   const sync=(loop,lbl)=>x.raw('pl','api',lbl?'GET changes?since=…':null,'req').then(()=>x.raw('api','db',null,'ad')).then(()=>x.raw('db','api',null,'ad')).then(()=>x.raw('api','pl',lbl?'3 changes':null,'ad')).then(()=>x.raw('pl','lite',lbl?'UPSERT':null,'slot'))
+     .then(()=>{S.last=S.T;S.back=2;if(loop)x.after(4,()=>sync(true))},()=>{if(!loop)return x.flag('pl','sync failed','bad');const w=Math.min(16,S.back)*(.5+rnd()*.5);x.flag('pl','sync failed · retry in '+w.toFixed(1)+' s','bad');S.back*=2;x.after(w,()=>sync(true))});
+   x.after(.5,()=>sync(true));
+   x.ui.btn('Sync now',()=>{x.log('The player asks for changes since its last sync and writes them into SQLite.');sync(false,true)},true);
+   x.ui.toggle('API outage',false,v=>{x.set('api',v);x.set('db',v);x.log(v?(S.direct?'The API is down and the player has no local copy, so playback stops.':'The API is down. Sync fails and backs off (2 s, 4 s, 8 s…), but playback keeps going from SQLite.'):'The API is back. The next retry syncs and the backoff resets.')});
+   x.ui.toggle('No local copy',false,v=>{S.direct=v;x.log(v?'Every item is now fetched from the API. Fine until the network or API hiccups.':'Playing from SQLite again.')});
+   const sL=x.ui.stat('last sync','slot','–');x.tick(t=>sL(S.last?Math.round(t-S.last)+' s ago':'never'))}},
+
+/* ---------------- Advanced ---------------- */
+{id:'realtime-scale',lv:'advanced',t:'Scaling real-time connections',s:'Real-time ×2',
+ aka:['Socket.IO','Redis adapter','pub/sub','sticky sessions','WebSocket fan-out','reconnect storm'],
+ one:`When one real-time server isn't enough, run several and connect them with pub/sub, so an event sent on one server reaches clients connected to another.`,
+ body:`<p>A WebSocket is a long-lived connection to <em>one specific server</em>. With one Socket.IO server, every client is connected to the same place and pushing an event is easy. Add a second server for capacity, and the dashboard may be on server 1 while the player you want to reach is on server 2. Server 1 has no idea that player exists.</p><p>The fix is a shared <strong>pub/sub</strong> channel, usually Redis: each server publishes events there and every server delivers them to its own clients (Socket.IO calls this the Redis adapter). The load balancer also needs <strong>sticky sessions</strong> while a connection is being set up. And when a server dies, all of its clients reconnect at once, so reconnects need random delays (jitter) or the surviving servers get flattened.</p>`,
+ adds:['Two or more Socket.IO servers behind a load balancer','Redis pub/sub, so every server sees every event','Client reconnect logic with jitter'],
+ when:['One real-time server is near its connection or CPU limit','Real-time needs to survive a server restart','Deploys currently drop every live connection at once'],
+ watch:['Events silently lost because the target is connected to another server','Reconnect storms after a crash or deploy','No sticky sessions, so connection setup fails at random','Redis becoming a single point of failure for all real-time traffic'],
+ good:['Any server can deliver to any client (the adapter is in place)','Clients reconnect with exponential backoff and jitter','Connections per server on a dashboard','Deploys drain one server at a time'],
+ ntv:`NTV360 runs one Socket.IO server relaying between the dashboard and 6,000 players, which is a sensible design at this size. This page shows what the next step looks like if it ever needs a second server, and why the second server is the hard part.`,
+ terms:['websocket','thundering-herd','backpressure','retry-backoff','load-balancer'],
+ words:[['Pub/sub','publish/subscribe: senders publish to a channel and every subscriber receives it'],['Sticky session','the load balancer keeps sending one client to the same server'],['Adapter','the Socket.IO plug-in that shares events between servers']],
+ cap:`Push to Players B with the Redis adapter off, then on. Crash server #2 with and without jitter, and watch server #1's meter.`,
+ h:340,cols:4,rate:2,maxRate:6,
+ nodes:[{id:'d',l:'Dashboard',sub:'on server #1',c:'pop',x:0,y:.5},{id:'lb',l:'Load balancer',sub:'sticky',c:'pi',x:.27,y:.5,ms:1},
+  {id:'s1',l:'Socket.IO #1',c:'pi',x:.6,y:0,ms:2,cap:8},{id:'rd',l:'Redis',sub:'pub/sub adapter',c:'slot',x:.6,y:.5,ms:1,new:true,dim:S=>!S.ad},{id:'s2',l:'Socket.IO #2',c:'pi',x:.6,y:1,ms:2,cap:8,new:true},
+  {id:'pA',l:'Players A',sub:'on server #1',c:'slot',x:1,y:0,stack:true},{id:'pB',l:'Players B',sub:S=>S.bOn==='s1'?'moved to #1':'on server #2',c:'slot',x:1,y:1,stack:true}],
+ edges:[['d','lb',{l:'WebSocket',ms:20}],['lb','s1'],['lb','s2'],['s1','rd',{dash:true,c:'slot',l:'pub/sub'}],['s2','rd',{dash:true,c:'slot'}],['s1','pA',{ms:20}],['s2','pB',{ms:20,show:S=>S.bOn==='s2'}],['s1','pB',{ms:20,dash:true,show:S=>S.bOn==='s1'}],['pB','lb',{dash:true,c:'bad',l:'reconnect',show:S=>S.storm}]],
+ state:()=>({ad:true,bOn:'s2',jit:true,lost:0,storm:false}),
+ scen:[{btn:'Push to Players A',w:1,log:'The dashboard and Players A are on the same server, so it can deliver directly.',
+   fn:async x=>{await x.hop('d','lb','push:playlist','pi');await x.hop('lb','s1','push:playlist','pi');await x.hop('s1','pA','playlist:update','pi')}},
+  {btn:'Push to Players B',w:1,log:'Players B are connected to server #2. Server #1 publishes the event to Redis; server #2 is subscribed and delivers it.',
+   fn:async(x,S)=>{await x.hop('d','lb','push:playlist','pi');await x.hop('lb','s1','push:playlist','pi');
+     if(S.bOn==='s1'){await x.hop('s1','pB','playlist:update','pi');return}
+     if(!S.ad){S.lost++;x.ctx.flag('s1','Players B? not connected here','bad');return false}
+     await x.hop('s1','rd','PUBLISH','slot');await x.hop('rd','s2','message','slot');await x.hop('s2','pB','playlist:update','pi')}}],
+ init(x){const S=x.S;
+   x.ui.toggle('Redis adapter',true,v=>{S.ad=v;x.log(v?'Servers share events through Redis again.':'Without the adapter each server only knows its own clients. Pushes to Players B vanish without an error.')});
+   x.ui.toggle('Server #2 crashes',false,v=>{x.set('s2',v);if(!v){x.log('Server #2 is back, but Players B stay on #1 until they reconnect for some other reason. Load doesn\'t rebalance by itself.');return}
+     S.bOn='s1';S.storm=true;x.after(S.jit?4.5:1.2,()=>S.storm=false);
+     x.log(S.jit?'Server #2 died. Its players reconnect with random delays spread over a few seconds, so server #1 absorbs them.':'Server #2 died and every one of its players reconnects at the same instant. Server #1 is flooded.');
+     for(let i=0;i<26;i++)x.after(S.jit?rnd()*4:rnd()*.25,()=>x.raw('pB','lb',i===0?'reconnect':null,'bad',{ms:20}).then(()=>x.raw('lb','s1',null,'bad')).catch(()=>{}))});
+   x.ui.toggle('Jitter on reconnect',true,v=>S.jit=v);
+   const sL=x.ui.stat('events lost','bad'),s1=x.ui.stat('server #1 load','pi','0/s');x.tick(()=>{sL(S.lost);s1(x.load('s1').toFixed(1)+'/s')})}},
+
+{id:'gateway-services',lv:'advanced',t:'API gateway + services',s:'Services',
+ aka:['microservices','API gateway','database per service','fan-out','BFF','service mesh'],
+ one:`Split the backend into services that each own one area of the business and its data, with a gateway in front that handles the shared chores.`,
+ body:`<p>As the team and the codebase grow, one API gets hard to change safely: everyone deploys the same thing, and one slow feature can drag down the rest. Splitting by business area (devices, content, reports) gives each <strong>service</strong> its own code, deploys and database. An <strong>API gateway</strong> in front does what every request needs: checking the token, rate limiting, and routing <code>/devices/*</code> to one service and <code>/content/*</code> to another.</p><p>The price: a page that used to be one database query may now need answers from three services over the network. It's only as fast as the slowest one (tail latency), and if one is down you need a plan: timeouts, and a partial answer instead of an error. Microservices solve team and deploy problems. They rarely make anything faster.</p>`,
+ adds:['A gateway doing auth, rate limiting and routing','Separate services per business area','Each service owning its own database'],
+ when:['Several teams keep stepping on each other in one codebase','Parts of the system have very different load or release needs','A failure in one area (reports) must not take down another (playback)'],
+ watch:['Splitting too early: a "distributed monolith" with all the costs and none of the gains','Fan-out requests that are only as fast as the slowest service','Services reading each other\'s databases directly','No timeouts between services, so one hang spreads everywhere'],
+ good:['Every service-to-service call has a timeout and a fallback','Rate limits at the gateway, answering 429 with Retry-After','Each service deploys on its own','A request ID passed along, so one request can be traced across services'],
+ ntv:`NTV360's single .NET API is the right call at its size; this design is here so you recognise it when you meet it. A realistic first step would be pulling out one heavy area, such as reporting, so it can never slow down player check-ins.`,
+ terms:['rate-limiting','tail-latency','timeout','circuit-breaker','auth'],
+ words:[['Microservice','a small service that owns one business area and its data'],['API gateway','the single entry point that routes requests to services'],['Fan-out','one request calling several services in parallel']],
+ cap:`Open the home screen while the content service is slow, then add a timeout. Burst 20 requests to hit the rate limit.`,
+ h:340,cols:4,rate:2,maxRate:6,
+ nodes:[{...CLIENT,x:0,y:.5},{id:'gw',l:'API gateway',sub:'auth · limits · routing',c:'pi',x:.28,y:.5,ms:1,new:true},
+  {id:'sd',l:'Devices svc',c:'req',x:.64,y:0,ms:3},{id:'sc',l:'Content svc',sub:S=>S.slow?'slow today':'',c:'req',x:.64,y:.5,ms:S=>S.slow?400:3},{id:'sr',l:'Reports svc',c:'req',x:.64,y:1,ms:3},
+  {id:'dd',l:'devices DB',c:'ad',x:1,y:0,ms:8},{id:'dc',l:'content DB',c:'ad',x:1,y:.5,ms:8},{id:'dr',l:'reports DB',c:'ad',x:1,y:1,ms:8}],
+ edges:[['c','gw',{l:'HTTPS',ms:25}],['gw','sd'],['gw','sc'],['gw','sr'],['sd','dd'],['sc','dc'],['sr','dr']],
+ state:()=>({slow:false,to:false,win:[],lim:0}),
+ scen:[{btn:'Get a device',w:3,log:'The gateway checks the token and the rate limit, then routes /devices/* to the devices service, which owns its own database.',
+   fn:async(x,S)=>{await x.hop('c','gw','GET /devices/42','pi');if(!limit(x,S))return await x.hop('gw','c','429 · slow down','bad'),'skip';await call(x,'sd','dd');await x.hop('gw','c','200 OK','ad')}},
+  {btn:'Open home screen',w:1,log:'The home screen needs all three services. The gateway calls them in parallel, so the answer is as slow as the slowest one.',
+   fn:async(x,S)=>{await x.hop('c','gw','GET /home','pi');if(!limit(x,S))return await x.hop('gw','c','429 · slow down','bad'),'skip';let partial=false;
+     await x.par([b=>call(b,'sd','dd'),b=>{const p=call(b,'sc','dc');if(!S.to)return p;return Promise.race([p,b.wait(2.2).then(()=>{partial=true;b.ms=300;b.flag('gw','content timed out → skip it','slot')})])},b=>call(b,'sr','dr')]);
+     await x.hop('gw','c',partial?'200 · partial home':'200 · home','ad')}}],
+ init(x){const S=x.S;
+   x.ui.toggle('Content service slow',false,v=>{S.slow=v;x.log(v?'The content service is having a bad day. Anything that needs it, like the home screen, is now as slow as it is.':'Content is fast again.')});
+   x.ui.toggle('Timeout + partial answer',false,v=>{S.to=v;x.log(v?'The gateway now gives each service a time budget. If content is late, the home screen ships without that section instead of waiting.':'No timeout: the gateway waits as long as it takes.')});
+   x.ui.btn('Burst 20 requests',()=>{x.log('Twenty requests in one second. The gateway allows 10 every 2 seconds and answers the rest with 429 Too Many Requests.');for(let i=0;i<20;i++)x.after(i*.05,()=>x.run(DESIGNS_BY['gateway-services'].scen[0].fn,true))},true);
+   const sL=x.ui.stat('429s sent','slot');x.tick(()=>sL(S.lim))}},
+
+{id:'event-driven',lv:'advanced',t:'Event-driven services',s:'Events',
+ aka:['event bus','SNS','EventBridge','Kafka','publish/subscribe','outbox pattern'],
+ one:`Instead of calling every service that cares about a change, a service publishes an event ("device registered") and whoever is interested reacts in their own time.`,
+ body:`<p>In a request-driven design, registering a device might mean the devices service calls billing, then notifications, then analytics, and waits for each. If notifications is down, registration fails, even though the device itself saved fine. In an <strong>event-driven</strong> design, the devices service saves the device, publishes a <code>DeviceRegistered</code> event to a <strong>bus</strong> (SNS, EventBridge, Kafka) and answers. Each interested service has its own queue and processes the event when it can.</p><p>Services become loosely coupled: you can add a consumer without touching the publisher, and a consumer outage just means its queue grows until it comes back. The costs: the system is eventually consistent, failures are quieter (nothing errors, things just don't happen), and you must make sure the save and the publish both happen. That last one is what the <strong>outbox pattern</strong> is for.</p>`,
+ adds:['An event bus between services','A queue per consumer, so each works at its own pace','Publishers that don\'t know about, or wait for, their consumers'],
+ when:['One action triggers several independent follow-ups','A slow or broken side effect shouldn\'t fail the main action','Other teams keep asking you to "also call our service when X happens"'],
+ watch:['Saving to the database but crashing before publishing, or the reverse. Use an outbox.','Events processed twice or out of order: consumers must be idempotent','"Nothing happened" bugs with no error anywhere. Monitor queue depth and consumer lag.','Event spaghetti: nobody knows what triggers what. Keep a list of events and their owners.'],
+ good:['The main request succeeds even while a consumer is down','Every consumer is idempotent and tracks what it already processed','Queue depth and consumer-lag alerts per consumer','Events are versioned and documented'],
+ ntv:`Things that happen "because a device came online" or "because a playlist changed" (alerts, audit logs, analytics, emails) are good candidates. The Socket.IO relay already behaves a little like this for live events between the dashboard and players.`,
+ terms:['async-queue','idempotency','eventual-consistency','backpressure','circuit-breaker'],
+ words:[['Event','a record that something happened, named in the past tense: DeviceRegistered'],['Consumer','a service that reacts to events'],['Outbox','saving the event in the same database transaction as the data, then publishing it']],
+ cap:`Take the notifications service down and register devices: requests still succeed while its queue grows. Then switch to direct calls and try again.`,
+ h:340,cols:4,rate:1,maxRate:5,
+ nodes:[{...CLIENT,l:'Dashboard',sub:'',x:0,y:.2,stack:false},{id:'ds',l:'Devices svc',c:'req',x:.33,y:.2,ms:3},{id:'dd',l:'devices DB',c:'ad',x:.33,y:1,ms:8},
+  {id:'bus',l:'Event bus',sub:'SNS / EventBridge',c:'slot',x:.66,y:.5,ms:1,new:true,dim:S=>S.direct},
+  {id:'bl',l:'Billing',c:'req',x:1,y:0,ms:3,depth:S=>S.back.bl},{id:'nt',l:'Notifications',c:'req',x:1,y:.5,ms:3,depth:S=>S.back.nt},{id:'an',l:'Analytics',c:'req',x:1,y:1,ms:3,depth:S=>S.back.an}],
+ edges:[['c','ds',{l:'HTTPS',ms:25}],['ds','dd'],['ds','bus',{l:'publish',dash:true,c:'slot',show:S=>!S.direct}],['bus','bl',{dash:true,c:'slot',show:S=>!S.direct}],['bus','nt',{dash:true,c:'slot',show:S=>!S.direct}],['bus','an',{dash:true,c:'slot',show:S=>!S.direct}],
+  ['ds','bl',{show:S=>S.direct}],['ds','nt',{show:S=>S.direct}],['ds','an',{show:S=>S.direct}]],
+ state:()=>({direct:false,back:{bl:0,nt:0,an:0}}),
+ scen:[{btn:'Register a device',w:1,log:'The devices service saves the device, publishes DeviceRegistered and answers. Billing, notifications and analytics each get their own copy and handle it on their own.',
+   fn:async(x,S)=>{await x.hop('c','ds','POST /devices');await x.hop('ds','dd','INSERT','ad');await x.hop('dd','ds','ok','ad');
+     if(S.direct){for(const s of ['bl','nt','an']){await x.hop('ds',s,'POST /'+s,'req');await x.hop(s,'ds','200','ad')}await x.hop('ds','c','201 Created','ad');return}
+     await x.hop('ds','bus','DeviceRegistered','slot');['bl','nt','an'].forEach(s=>deliver(x.ctx,s,!x.quiet));await x.hop('ds','c','201 Created','ad')}}],
+ init(x){const S=x.S;
+   x.every(.6,()=>['bl','nt','an'].forEach(s=>{if(S.back[s]&&!S.down.has(s)){S.back[s]--;deliver(x,s,false)}}));
+   x.ui.toggle('Notifications service down',false,v=>{x.set('nt',v);x.log(v?(S.direct?'Notifications is down and the devices service calls it directly, so registration fails.':'Notifications is down. Registrations still succeed; its events wait in its queue.'):'Notifications is back and works through its backlog.')});
+   x.ui.toggle('Call services directly (no bus)',false,v=>{S.direct=v;x.log(v?'Now the devices service calls each service in turn and waits. Slower, and any one of them being down fails the whole request.':'Back to publishing events.')});
+   const sB=x.ui.stat('events waiting','slot');x.tick(()=>sB(S.back.bl+S.back.nt+S.back.an))}},
+
+{id:'sharding',lv:'advanced',t:'Sharding (splitting the data)',s:'Shards',
+ aka:['partitioning','shard key','horizontal partitioning','hot partition','multi-tenant'],
+ one:`Split one huge database into several smaller ones, each holding a slice of the data chosen by a key like the customer ID.`,
+ body:`<p>Caches and replicas help reads. When <em>writes</em> or sheer data size outgrow the biggest database you can buy, you split the data itself. Each <strong>shard</strong> is a full database holding a subset of the rows, picked by a <strong>shard key</strong>: customers A to H on shard 1, I to P on shard 2, and so on (in practice usually a hash of the key). The application, or a routing layer, sends each query to the right shard.</p><p>Choosing the key is the whole game. A good key spreads load evenly and keeps most queries on one shard. A bad one creates a <strong>hot shard</strong>: one giant customer whose traffic melts their shard while the others sit idle. And anything that needs all the data, like a global report, becomes a slow fan-out.</p>`,
+ adds:['Several databases, each owning a slice of the data','A shard key that decides where each row lives','Routing that sends each query to the right shard'],
+ when:['A single primary can\'t keep up with writes, even on the largest instance','Tables are so big that indexes, migrations and backups become painful','Data splits naturally by tenant or customer and rarely crosses'],
+ watch:['Hot shards from uneven keys (one huge customer)','Cross-shard queries and transactions: slow and complicated','Re-sharding later is a major project, so choose the key carefully','Reaching for sharding before indexes, caching, replicas and a bigger instance'],
+ good:['Most requests touch exactly one shard','Load per shard is monitored and roughly even','The shard key is stable and present in almost every query','Global reports come from a separate analytics store, not a live fan-out'],
+ ntv:`At NTV360's size, one well-indexed RDS instance is plenty. Sharding is here to finish the ladder, and because "split by customer" is a question you'll hear in any multi-tenant product.`,
+ terms:['throughput','tail-latency','race-condition','percentiles'],
+ words:[['Shard','one slice of the data, in its own database'],['Shard key','the field that decides which shard a row lives on'],['Hot shard','a shard getting far more traffic than the others']],
+ cap:`Turn on the hot customer and watch shard 1's meter. Then run a cross-shard report.`,
+ h:330,cols:4,rate:5,maxRate:12,
+ nodes:[{...CLIENT,x:0,y:.5},{id:'api',l:'.NET API',sub:'routes by customer',c:'req',x:.36,y:.5,ms:3},
+  {id:'s0',l:'Shard 1',sub:'customers A–H',c:'ad',x:1,y:0,ms:8,cap:3,new:true},{id:'s1',l:'Shard 2',sub:'customers I–P',c:'ad',x:1,y:.5,ms:8,cap:3,new:true},{id:'s2',l:'Shard 3',sub:'customers Q–Z',c:'ad',x:1,y:1,ms:8,cap:3,new:true}],
+ edges:[['c','api',{l:'HTTPS',ms:25}],['api','s0'],['api','s1'],['api','s2']],
+ state:()=>({hot:false}),
+ scen:[{btn:'Read a customer',w:1,log:'The API looks at the customer\'s name, works out which shard holds them, and queries only that one.',
+   fn:async(x,S)=>{const cs=[['Acme Cafe',0],['Delta Diner',0],['Iron Gym',1],['Lakeside Mall',1],['Pizza Planet',1],['Quick Mart',2],['Sunset Spa',2],['Zen Tea',2]];
+     const c=S.hot&&rnd()<.6?['Big Box Co',0]:cs[Math.floor(rnd()*cs.length)],sh='s'+c[1];
+     await x.hop('c','api','GET '+c[0]);await x.hop('api',sh,'SELECT','ad');await x.hop(sh,'api','rows','ad');await x.hop('api','c','200 OK','ad')}},
+  {btn:'Cross-shard report',w:0,log:'A report over every customer has to ask all shards and merge the answers. It\'s as slow as the slowest shard.',
+   fn:async x=>{await x.hop('c','api','GET /reports/all');await x.par(['s0','s1','s2'].map(sh=>async b=>{await b.hop('api',sh,'SELECT SUM…','ad',{work:60});await b.hop(sh,'api','partial','ad')}));await x.hop('api','c','merged report','ad')}}],
+ init(x){x.ui.toggle('Hot customer (Big Box Co)',false,v=>{x.S.hot=v;x.log(v?'Big Box Co is now 60% of all traffic, and they all live on shard 1. The other shards idle while shard 1 overloads.':'Traffic is spread evenly again.')})}},
+
+{id:'multi-region',lv:'advanced',t:'Multi-region & failover',s:'2 regions',
+ aka:['disaster recovery','DR','active-passive','failover','RTO','RPO','Route 53 health checks'],
+ one:`Run the system in two or more geographic regions, so users get a nearby server and a whole region going down isn't the end of the day.`,
+ body:`<p>Everything so far lives in one AWS region. Regions are very reliable, but they do have bad days, and users far away pay for the distance on every request. A <strong>multi-region</strong> setup runs the API in two regions. DNS (Route 53) sends each user to the nearest healthy one and stops sending traffic to a region whose health checks fail.</p><p>The database is the hard part. Usually one region holds the <strong>primary</strong> and the other a cross-region <strong>replica</strong>: reads are local everywhere, but writes travel to the primary. When the primary's region fails, you <strong>promote</strong> the replica, and any writes that hadn't replicated yet are lost. Two numbers describe the plan: <strong>RTO</strong>, how long recovery takes, and <strong>RPO</strong>, how much data you can afford to lose.</p>`,
+ adds:['A second region with its own API servers','Cross-region database replication','DNS routing by latency, with health-check failover'],
+ when:['Downtime costs more than running a second region','Users are spread across continents and latency matters','Contracts or regulations require disaster recovery with a set RTO and RPO'],
+ watch:['A failover plan nobody has ever run. Rehearse it.','Writes crossing regions on every request (slow), or two primaries (conflicts)','Hidden single-region dependencies: a config bucket, a secret, a third-party API','Roughly double the cost, plus a lot more complexity'],
+ good:['RTO and RPO written down and agreed with the business','Failover tested on a schedule, not just designed','Health checks test real dependencies like the database, not just "is the server up"','Infrastructure as code, so the second region is truly identical'],
+ ntv:`Players across the USA talk to one AWS region today, and their local SQLite copy already covers short outages on the playback side. A second region matters if the dashboard and device management must stay up through a regional outage. That's a business decision first and a technical one second.`,
+ terms:['sli-slo-sla','error-budget','eventual-consistency','latency','circuit-breaker'],
+ words:[['Region','a geographic AWS location, like us-east-1, with several data centres'],['RTO','Recovery Time Objective: how long until service is back'],['RPO','Recovery Point Objective: how much recent data you can lose'],['Failover','moving traffic to the standby when the main one fails']],
+ cap:`Take us-east down. Requests from the east fail until the DNS health checks notice, then flow to us-west, where the replica gets promoted.`,
+ h:340,cols:4,rate:4,maxRate:10,
+ nodes:[{id:'ue',l:'Users East',c:'pop',x:0,y:0,stack:true},{id:'uw',l:'Users West',c:'pop',x:0,y:1,stack:true},{id:'dns',l:'DNS',sub:'latency + health checks',c:'pi',x:.28,y:.5,ms:1},
+  {id:'aE',l:'API · us-east',c:'req',x:.62,y:0,ms:4},{id:'aW',l:'API · us-west',c:'req',x:.62,y:1,ms:4,new:true},
+  {id:'dE',l:'Primary DB',sub:'us-east',c:'ad',x:1,y:0,ms:10},{id:'dW',l:S=>S.promoted?'Primary DB':'Replica DB',sub:S=>S.promoted?'promoted!':'us-west',c:'ad',x:1,y:1,ms:10,new:true}],
+ zones:[{ids:['aE','dE'],l:'Region us-east',c:'req'},{ids:['aW','dW'],l:'Region us-west',c:'req'}],
+ edges:[['ue','dns',{dash:true,l:'lookup'}],['uw','dns',{dash:true}],['ue','aE',{ms:20,show:S=>!S.fo}],['uw','aW',{ms:20}],['ue','aW',{ms:70,dash:true,c:'slot',show:S=>S.fo}],
+  ['aE','dE'],['aW','dW'],['aW','dE',{ms:65,l:'writes cross-region',show:S=>!S.promoted}],['aE','dW',{ms:65,show:S=>S.promoted}],['dE','dW',{ms:65,dash:true,c:'slot',l:'replication',show:S=>!S.promoted}]],
+ state:()=>({fo:false,promoted:false,lostW:0,out:false}),
+ scen:[{btn:'Read',w:3,log:'Each user goes to the nearest region and reads from the database copy in that region. Fast for everyone.',
+   fn:async(x,S)=>{const u=rnd()<.5?'ue':'uw',a=u==='uw'||S.fo?'aW':'aE',db=a==='aE'?'dE':'dW';
+     await x.hop(u,a,'GET /devices');await x.hop(a,db,'SELECT','ad');await x.hop(db,a,'rows','ad');await x.hop(a,u,'200 OK','ad')}},
+  {btn:'Write',w:1,log:'Writes must go to the primary. From us-west that\'s a cross-country round trip, so west-coast writes are noticeably slower.',
+   fn:async(x,S)=>{const u=rnd()<.5?'ue':'uw',a=u==='uw'||S.fo?'aW':'aE',db=S.promoted?'dW':'dE';
+     await x.hop(u,a,'PUT /devices/42');await x.hop(a,db,'UPDATE','ad');await x.hop(db,a,'ok','ad');await x.hop(a,u,'200 OK','ad')}}],
+ init(x){const S=x.S;
+   x.ui.toggle('us-east outage',false,v=>{S.out=v;x.set('aE',v);x.set('dE',v);
+     if(v){x.log('us-east is down. East users keep failing until DNS health checks mark the region unhealthy (a few seconds here, often a minute or more in real life).');
+       x.after(3,()=>{if(!S.out)return;S.fo=true;x.flag('dns','us-east unhealthy → us-west','slot');x.log('DNS now sends everyone to us-west. Next, the replica has to be promoted to accept writes.')});
+       x.after(5,()=>{if(!S.out||S.promoted)return;S.promoted=true;S.lostW=2+Math.floor(rnd()*4);x.flag('dW','promoted to primary','ad');x.log('The us-west replica is now the primary. Writes that hadn\'t replicated before the outage are gone: that\'s your RPO.')})}
+     else{S.fo=false;x.log('us-east is back. East users route there again, but the primary now lives in us-west; failing back is its own careful project.')}});
+   const sW=x.ui.stat('writes lost (RPO)','bad');x.tick(()=>sW(S.lostW))}}
+];
+const DESIGNS_BY=Object.fromEntries(DESIGNS.map(d=>[d.id,d]));
+
+/* helpers used by several designs */
+function leak(x,S,what){if(S.https)return;S.leaks++;x.side('c','spy',what,'bad',{ms:1})}
+function sub(S,id){return S.down&&S.down.has(id)?'':S.hc&&S.healthy&&S.healthy[id]===false?'out of rotation':'.NET'}
+async function write(x,S){await x.hop('c','api','PUT /devices/42');await x.hop('api','pri','UPDATE','ad');const v=++S.ver;
+  ['r1','r2'].forEach(r=>x.ctx.after(S.lag,()=>x.ctx.raw('pri',r,x.quiet?null:'v'+v,'slot',{nohit:true}).then(()=>{S.rv[r]=Math.max(S.rv[r],v)},()=>{})));
+  await x.hop('pri','api','ok','ad');await x.hop('api','c','200 OK','ad');return v}
+function limit(x,S){S.win=S.win.filter(t=>t>S.T-2);if(S.win.length>=10){S.lim++;x.ctx.flag('gw','429 Too Many Requests','bad');return false}S.win.push(S.T);return true}
+async function call(b,svc,db){await b.hop('gw',svc,'GET','req');await b.hop(svc,db,'SELECT','ad');await b.hop(db,svc,'rows','ad');await b.hop(svc,'gw','200','ad')}
+function deliver(x,s,lbl){x.raw('bus',s,lbl?'DeviceRegistered':null,'slot').catch(()=>{x.S.back[s]++})}
+</script>
+<script>
+/* ================= backend guide cross-reference ================= */
+const BT={"rest":["REST","beginner","REST (REpresentational State Transfer) is a way of designing APIs where URLs name things (resources) and HTTP methods say what to do with them."],"http-methods":["HTTP methods","beginner","The verb of a request. GET reads, POST creates, PUT replaces, PATCH changes part, DELETE removes."],"status-codes":["HTTP status codes","beginner","A three-digit number on every response saying how it went. The first digit tells you whose problem it is."],"https":["HTTPS, SSL & TLS","beginner","HTTPS (HTTP Secure) is plain HTTP sent through an encrypted TLS (Transport Layer Security) connection, so nobody in between can read or change it."],"anatomy":["Request & response anatomy","beginner","Every HTTP message has the same parts: a first line, headers with details about it, and an optional body with the data."],"auth":["Authentication & tokens","beginner","Proving who you are on every request, usually with a token the server gave you when you logged in."],"cors":["CORS","mid","Cross-Origin Resource Sharing: a browser rule that lets a page from one site read responses from another site only if that site allows it."],"websocket":["WebSockets & polling","mid","Polling asks \"anything new?\" over and over. A WebSocket keeps one connection open so the server can push the moment something happens."],"latency":["Latency","beginner","How long one request takes, from the moment you send it to the moment the answer is back."],"ttfb":["TTFB","mid","Time To First Byte: how long until the first piece of the answer arrives, even if the rest is still on its way."],"throughput":["Throughput","mid","How many requests a system finishes per second. Speed measured in volume, not in time."],"distribution":["Statistical distribution","hard","The shape you get when you plot many measurements: where most values land, and how far the stragglers go."],"mean-median":["Mean vs median","mid","The average is easily dragged around by one huge value. The median, the middle value, barely moves."],"percentiles":["Percentiles (p50, p95, p99)","hard","p99 (the 99th percentile) means 99% of requests were faster than this. It's the latency of your unlucky 1 in 100."],"tail-latency":["Tail latency","insane","The slow end of the distribution, and why it gets worse when one request depends on many others."],"cold-start":["Cold start","mid","The extra delay on the first request after something has been idle or freshly started."],"sli-slo-sla":["SLI, SLO, SLA","hard","SLI (Service Level Indicator) is what you measure. SLO (Service Level Objective) is the target you aim for. SLA (Service Level Agreement) is the promise in a contract, with a penalty."],"error-budget":["Error budget","hard","The amount of failure your SLO allows. 99.9% per month leaves about 43 minutes."],"timeout":["Timeout","beginner","The longest you're willing to wait for an answer before giving up."],"retry-backoff":["Retry with backoff & jitter","hard","After a failure, try again, waiting longer each time and adding randomness so everyone doesn't retry at once."],"circuit-breaker":["Circuit breaker","hard","Stop calling a service that keeps failing, wait a bit, then test it carefully before trusting it again."],"idempotency":["Idempotency","hard","Sending the same request twice has the same effect as sending it once."],"rate-limiting":["Rate limiting","mid","A cap on how many requests a client can make in a time window. Go over it and you get HTTP 429."],"backpressure":["Backpressure","insane","When the consumer is slower than the producer, push back on the producer instead of letting work pile up."],"thundering-herd":["Thundering herd","insane","Lots of requests wake up at the same moment and all hit the same resource at once."],"load-balancer":["Load balancer","mid","A traffic cop that spreads incoming requests across several servers."],"cache":["Cache hit & miss","beginner","Keep a copy of an answer close by so you don't have to compute or fetch it again."],"ttl":["TTL","mid","Time To Live: how long a cached item, DNS record, or message may live before it's considered stale."],"connection-pool":["Connection pool","mid","Keep a few connections open and reuse them, instead of opening a new one for every request."],"async-queue":["Message queue & async jobs","hard","Accept the job now, do it later in the background, and tell the client when it's done."],"n-plus-1":["N+1 query","mid","Fetching a list with one query, then running one more query for each item in it."],"pagination":["Offset vs cursor pagination","mid","Returning a big list in pages. Offset says \"skip 4\". A cursor says \"start after this item\"."],"race-condition":["Race condition","hard","Two operations run at the same time, and the result depends on which one happens to go first."],"eventual-consistency":["Eventual consistency","insane","Every copy of the data will agree, just not instantly. For a short while, some readers see the old value."]};
+const BTLV={beginner:['Beginner','ad'],mid:['Mid','req'],hard:['Hard','slot'],insane:['Insane','bad']};
+const BHREF=id=>'backend-terminologies.html#'+id;
+const btChip=id=>{const b=BT[id];if(!b)return'';const l=BTLV[b[1]];return `<a class="bt" href="${BHREF(id)}" data-bt="${id}"><i style="--c:var(--${l[1]})"></i>${b[0]}<small>${l[0]}</small></a>`};
+
+/* ================= levels, order, checklist ================= */
+const LEVELS=[
+ {k:'beginner',name:'Beginner',c:'ad',blurb:'One app, one database, one front door. Where every system starts, and where many should stay.'},
+ {k:'mid',name:'Mid',c:'req',blurb:'The first growing pains: more traffic, busy databases, big files, slow jobs and flaky networks.'},
+ {k:'advanced',name:'Advanced',c:'slot',blurb:'Many servers, many services, many regions. Powerful, and expensive to run well.'}];
+const lvOf=k=>LEVELS.find(l=>l.k===k);
+const ORDER=['start',...DESIGNS.map(d=>d.id),'checklist'];
+const SYMPTOMS=[
+ ['Every deploy causes a minute of errors','load-balanced'],['One server crash takes everything down','load-balanced'],['API CPU is maxed out at peak times','load-balanced'],
+ ['The database answers the same reads over and over','cache-aside'],['The database is busy with varied reads and reports','read-replicas'],['Big downloads slow down the API','cdn-storage'],
+ ['Requests time out while doing heavy work','async-queue'],['Devices stop working when the network drops','offline-first'],['HTTPS, certificates and CORS set up in five places','reverse-proxy'],
+ ['Live events go missing after adding a second server','realtime-scale'],['Teams block each other shipping one codebase','gateway-services'],['One action must trigger many follow-ups','event-driven'],
+ ['Writes outgrow the biggest database you can buy','sharding'],['A region outage would cost more than a second region','multi-region']];
+const CHECK=[
+ {k:'sec',name:'Secure',c:'bad',items:[
+  ['HTTPS everywhere, and plain HTTP redirects to HTTPS','Anyone on the same network can read plain HTTP, tokens included.',['https'],'reverse-proxy'],
+  ['Certificates renew automatically, with an expiry alert','An expired certificate cuts off every client on the same day.',['https']],
+  ['Every endpoint checks auth, and tokens expire','A forgotten [Authorize] is an open door. Short-lived tokens limit the damage of a leak.',['auth','status-codes']],
+  ['Databases and internal services are unreachable from the internet','Only the front door has a public address.',[],'reverse-proxy'],
+  ['Secrets live in a secrets manager or environment, never in git','Anything committed once is in the history forever.',[]],
+  ['CORS allows only your own origins, not *','A wildcard lets any website call your API from a logged-in browser.',['cors']],
+  ['Input is validated on the server','Frontend checks are a convenience; anyone can call the API directly.',['anatomy']]]},
+ {k:'fast',name:'Fast',c:'req',items:[
+  ['p95 and p99 are tracked, not just the average','The average hides the slow requests your users actually complain about.',['percentiles','mean-median']],
+  ['Every list endpoint is paginated','A list that grows with your customers becomes a timeout one day.',['pagination'],'three-tier'],
+  ['No N+1 queries on hot endpoints','Each extra query is another round trip to the database.',['n-plus-1'],'three-tier'],
+  ['Database connections are pooled','Opening a connection per request costs a handshake every time.',['connection-pool']],
+  ['Hot reads are cached, with a TTL','The fastest database query is the one you don\'t run.',['cache','ttl'],'cache-aside'],
+  ['Big files come from storage or a CDN, not the API','APIs should move JSON, not videos.',['throughput'],'cdn-storage']]},
+ {k:'rel',name:'Reliable',c:'ad',items:[
+  ['Every outbound call has a timeout','Without one, a hung dependency hangs you too.',['timeout']],
+  ['Retries use backoff with jitter, and only for safe calls','Instant retries from every client turn a blip into an outage.',['retry-backoff','idempotency'],'offline-first'],
+  ['POSTs that may be retried accept an idempotency key','A retried payment or order must not happen twice.',['idempotency']],
+  ['Rate limits answer 429 with Retry-After','One noisy client shouldn\'t be able to starve the rest.',['rate-limiting'],'gateway-services'],
+  ['Slow work goes to a queue; the API answers 202','Users shouldn\'t wait on reports, and a spike shouldn\'t crush the database.',['async-queue'],'async-queue'],
+  ['A failing dependency trips a circuit breaker','Fail fast instead of piling up waiting requests.',['circuit-breaker']],
+  ['At least two instances behind a load balancer with health checks','One crash or deploy should be invisible to users.',['load-balancer'],'load-balanced']]},
+ {k:'ops',name:'Operable',c:'slot',items:[
+  ['SLOs are written down, with alerts on the error budget','Agree on "good enough" before arguing about an incident.',['sli-slo-sla','error-budget']],
+  ['Dashboards for latency, traffic, errors and saturation','The four numbers that tell you something is wrong before customers do.',['throughput','percentiles']],
+  ['Logs are structured, with a request ID on every line','So one request can be followed across every service it touched.',['anatomy']],
+  ['Backups are automated, and a restore has actually been tested','An untested backup is a hope, not a backup.',[],'single-server'],
+  ['Deploys roll out without downtime and roll back in minutes','If a deploy is scary, people stop deploying.',['load-balancer'],'load-balanced']]}];
+
+/* ================= index + search ================= */
+const $=id=>document.getElementById(id);
+let stage=null,curId=null;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const strip=h=>h.replace(/<[^>]+>/g,' ');
+const badge=lv=>{const l=lvOf(lv);return `<span class="lvb" style="--c:var(--${l.c})">${l.name}</span>`};
+const num=id=>ORDER.indexOf(id);
+function score(d,q){if(!q)return 1;const ql=q.toLowerCase(),t=d.t.toLowerCase();
+  if(t===ql||d.aka.some(a=>a.toLowerCase()===ql))return 100;if(t.includes(ql))return 60;if(d.aka.some(a=>a.toLowerCase().includes(ql)))return 50;
+  if(d.words.some(([a,b])=>(a+' '+b).toLowerCase().includes(ql)))return 45;if(d.one.toLowerCase().includes(ql))return 20;
+  if(strip(d.body+d.watch.join(' ')+d.good.join(' ')+d.ntv).toLowerCase().includes(ql))return 10;return 0}
+function hl(s,q){if(!q)return esc(s);const i=s.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(s);
+  return esc(s.slice(0,i))+'<mark>'+esc(s.slice(i,i+q.length))+'</mark>'+esc(s.slice(i+q.length))}
+let COLL={};try{COLL=JSON.parse(localStorage.getItem('afg-coll')||'{}')}catch(e){}
+const saveColl=()=>{try{localStorage.setItem('afg-coll',JSON.stringify(COLL))}catch(e){}};
+let TICK={};try{TICK=JSON.parse(localStorage.getItem('afg-check')||'{}')}catch(e){}
+const saveTick=()=>{try{localStorage.setItem('afg-check',JSON.stringify(TICK))}catch(e){}};
+function renderToc(){const q=$('q').value.trim();let html='',hits=0;
+  LEVELS.forEach(l=>{const k='l-'+l.k,items=DESIGNS.filter(d=>d.lv===l.k).map(d=>({d,sc:score(d,q)})).filter(o=>o.sc>0);if(q)items.sort((a,b)=>b.sc-a.sc);if(!items.length)return;hits+=items.length;const shut=!q&&COLL[k];
+    html+=`<div class="ch${shut?' shut':''}"><h3><button class="gh" data-k="${k}" aria-expanded="${!shut}"><svg viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3"/></svg><i style="color:var(--${l.c})">■</i>${l.name}${l.k==='beginner'?' · start here':''}<em>${DESIGNS.filter(d=>d.lv===l.k).length}</em></button></h3><div class="gi">`+
+    items.map(({d})=>{const ql=q.toLowerCase();let via=null;if(q&&!d.t.toLowerCase().includes(ql))via=d.aka.find(a=>a.toLowerCase().includes(ql));
+      return `<button data-id="${d.id}" class="${d.id===curId?'on':''}">${hl(d.t,q)}${via?`<span class="via">matches “${hl(via,q)}”</span>`:''}<span class="pg">${num(d.id)}</span></button>`}).join('')+'</div></div>'});
+  if(!q||'checklist api healthy good secure'.includes(q.toLowerCase())){html+=`<div class="ch"><h3><span class="gh" style="cursor:default"><i>✓</i>Tools</span></h3><div class="gi"><button data-id="checklist" class="${curId==='checklist'?'on':''}">Healthy API checklist<span class="pg">${num('checklist')}</span></button></div></div>`;if(q)hits++}
+  $('toc').innerHTML=html||`<div class="empty">Nothing matches “${esc(q)}”. Try <b>cache</b>, <b>replica</b>, <b>queue</b> or <b>CDN</b>.</div>`;
+  $('found').innerHTML=q?(hits?`${hits} match${hits>1?'es':''} · Enter opens the first`:''):`<span>${DESIGNS.length} designs · ${LEVELS.length} levels</span><button class="fold" id="foldall">${Object.values(COLL).some(Boolean)?'Expand all':'Collapse all'}</button>`;
+  const fa=$('foldall');if(fa)fa.onclick=()=>{const any=Object.values(COLL).some(Boolean);COLL={};if(!any)LEVELS.forEach(l=>COLL['l-'+l.k]=true);saveColl();renderToc()}}
+document.addEventListener('click',e=>{const h=e.target.closest('button.gh');if(!h)return;COLL[h.dataset.k]=!COLL[h.dataset.k];saveColl();renderToc()});
+$('toc').onclick=e=>{const b=e.target.closest('button[data-id]');if(b){go(b.dataset.id);if(matchMedia('(max-width:860px)').matches){$('index').classList.remove('open');$('mtoggle').textContent='Show contents'}}};
+$('q').oninput=()=>{renderToc();if($('q').value.trim())$('index').classList.add('open')};
+$('q').onkeydown=e=>{if(e.key==='Enter'){const b=$('toc').querySelector('button[data-id]');if(b){go(b.dataset.id);$('q').blur()}}if(e.key==='Escape'){$('q').value='';renderToc();$('q').blur()}};
+$('mtoggle').onclick=()=>{const o=$('index').classList.toggle('open');$('mtoggle').textContent=o?'Hide contents':'Show contents'};
+$('home').onclick=()=>go('start');
+
+/* ================= pages ================= */
+const ICON={fig:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="5"/><rect x="15" y="4" width="6" height="5"/><rect x="9" y="15" width="6" height="5"/><path d="M6 9v3h12V9M12 12v3"/></svg>',
+ txt:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 11h16M4 16h10"/></svg>',
+ done:'<svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg>',
+ link:'<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg>',
+ book:'<svg viewBox="0 0 24 24"><path d="M4 5h7a2 2 0 012 2v13a2 2 0 00-2-2H4zM20 5h-5a2 2 0 00-2 2v13a2 2 0 012-2h5z"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 22s7-7 7-12a7 7 0 10-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+ warn:'<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg>',
+ when:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+ abc:'<svg viewBox="0 0 24 24"><path d="M4 18l4-12 4 12M5.5 14h5M15 6v12h3a3 3 0 000-6h-3"/></svg>',
+ ladder:'<svg viewBox="0 0 24 24"><path d="M7 3v18M17 3v18M7 7h10M7 12h10M7 17h10"/></svg>'};
+const ph=(ic,title,act)=>`<div class="ph"><div class="ic">${ICON[ic]}</div><h2>${title}</h2>${act||''}</div>`;
+const lst=(arr,c,cls='')=>`<ul class="lst ${cls}" style="--c:var(--${c})">${arr.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+const LEGEND=[['pop','Clients'],['pi','Edge: DNS, proxy, LB, CDN'],['req','App servers & services'],['ad','Databases & storage'],['slot','Caches, queues, devices']];
+
+function cover(){
+  return `<div class="head"><div class="l"><div class="eyebrow">Architecture</div><h1 class="term">From one server to many regions</h1>
+  <p class="one">Every big system started as one app and one database. Each design below adds one piece to solve one specific pain, and brings new problems with it. Learn them in order, and you'll know what to reach for when a symptom shows up, and what it will cost you. Every diagram is live: break it on purpose.</p></div></div>
+  <div class="kpis">${LEVELS.map(l=>{const n=DESIGNS.filter(d=>d.lv===l.k);return `<button class="kpi lvk" style="--c:var(--${l.c})" data-go="${n[0].id}"><div class="lab" style="color:var(--${l.c})">${l.name}${l.k==='beginner'?' · start here':''}</div><b>${n.length}</b><p>${l.blurb}</p></button>`}).join('')}
+   <button class="kpi lvk" style="--c:var(--brand)" data-go="checklist"><div class="lab" style="color:var(--brand)">Checklist</div><b>${CHECK.reduce((a,g)=>a+g.items.length,0)}</b><p>Signs of a healthy API: secure, fast, reliable, operable. Tick off what yours has.</p></button></div>
+  <div class="panel">${ph('ladder','The ladder','<span class="act" style="cursor:default">climb only when it hurts</span>')}
+   ${LEVELS.map(l=>`<div class="lvh" style="--c:var(--${l.c})">${l.name}<span>${l.blurb}</span></div><div class="cards">${DESIGNS.filter(d=>d.lv===l.k).map(d=>
+    `<button class="card" data-go="${d.id}"><canvas data-thumb="${d.id}"></canvas><div class="ct"><i style="--c:var(--${l.c})">${num(d.id)}</i>${d.t}</div><p>${esc(strip(d.adds[0]))}</p>${d.ntvUses?'<span class="ntvb">NTV360 uses this</span>':''}</button>`).join('')}</div>`).join('')}
+   <div class="legend">${LEGEND.map(([c,t])=>`<span style="--c:var(--${c})">${t}</span>`).join('')}</div></div>
+  <div class="grid" style="margin-top:16px">
+   <div class="panel">${ph('pin','Which design do I need?','<span class="act" style="cursor:default">symptom → design</span>')}<div class="sym">${SYMPTOMS.map(([s,id])=>{const d=DESIGNS_BY[id];return `<button data-go="${id}" style="--c:var(--${lvOf(d.lv).c})">${s}<span>${num(id)} · ${d.t}</span></button>`}).join('')}</div></div>
+   <div class="side"><div class="panel">${ph('book','How each page works')}<div class="pb words">
+    <div><b>Live diagram</b>Requests move through the system as packets. Toggles break things on purpose; stats show p50, p99 and failures.</div>
+    <div><b>What this adds</b>The one change from the step before. New boxes in the diagram are tagged NEW.</div>
+    <div><b>When / Watch out / Done well</b>When to reach for it, how it bites, and what a good setup looks like.</div>
+    <div><b>Backend terms in play</b>Links into the Backend Field Guide for every concept the design leans on.</div></div></div></div></div>`}
+
+function designPage(d){
+  const i=DESIGNS.indexOf(d),pv=DESIGNS[i-1],nx=DESIGNS[i+1],l=lvOf(d.lv);
+  return `<div class="head"><div class="l"><div class="eyebrow">${badge(d.lv)}<span>Step ${i+1} of ${DESIGNS.length}</span></div>
+    <h1 class="term">${d.t}</h1><p class="one">${d.one}</p></div>
+    <div class="aka">${d.aka.map(a=>`<span>${esc(a)}</span>`).join('')}</div></div>
+  <div class="grid">
+    <div class="panel">${ph('fig','Live diagram',nx?`<button class="act" data-go="${nx.id}">Next design →</button>`:`<button class="act" data-go="checklist">Checklist →</button>`)}
+      <div class="pb"><div class="stats" id="stats"></div><div class="stage" id="stage"></div><div class="ctrl" id="ctrl"></div>
+      <p class="cap" id="log"><b>Try it</b>${d.cap}</p></div></div>
+    <div class="side">
+      <div class="panel">${ph('plus',pv?'What this adds to '+esc(pv.t.toLowerCase()):'What this is')}<div class="pb">${lst(d.adds,'ad','plus')}</div></div>
+      <div class="panel note">${ph('done','The NTV360 angle',d.ntvUses?'<span class="ntvb">NTV360 uses this</span>':'')}<div class="pb txt"><p>${d.ntv}</p></div></div>
+      <div class="panel">${ph('abc','New words')}<div class="pb words">${d.words.map(([a,b])=>`<div><b>${esc(a)}</b>${esc(b)}</div>`).join('')}</div></div>
+    </div>
+  </div>
+  <div class="trio">
+    <div class="panel pw" style="--c:var(--req)"><div class="pb"><div class="lab">When to use it</div>${lst(d.when,'req')}</div></div>
+    <div class="panel pw" style="--c:var(--bad)"><div class="pb"><div class="lab">Watch out for</div>${lst(d.watch,'bad')}</div></div>
+    <div class="panel pw" style="--c:var(--ad)"><div class="pb"><div class="lab">Signs it's done well</div>${lst(d.good,'ad')}</div></div>
+  </div>
+  <div class="panel plain">${ph('txt','In plain words')}<div class="pb txt">${d.body}</div></div>
+  <div class="panel" style="margin-top:16px">${ph('link','Backend terms in play','<span class="act" style="cursor:default">opens the Backend Field Guide</span>')}<div class="pb"><div class="bts">${d.terms.map(btChip).join('')}</div></div>
+    <div class="steps"><button ${pv?`data-go="${pv.id}"`:'disabled'}><small>← Previous step</small><b>${pv?pv.t:'—'}</b></button><button data-go="${nx?nx.id:'checklist'}"><small>Next step →</small><b>${nx?nx.t:'Healthy API checklist'}</b></button></div></div>`}
+
+function checklist(){
+  const tot=CHECK.reduce((a,g)=>a+g.items.length,0),done=CHECK.reduce((a,g)=>a+g.items.filter((_,j)=>TICK[g.k+j]).length,0);
+  return `<div class="head"><div class="l"><div class="eyebrow">Checklist</div><h1 class="term">Signs of a healthy API</h1>
+   <p class="one">Good APIs share habits: they're encrypted, they keep p99 low, they fail gracefully, and someone can tell when they're sick. Tick what your API already does. Your ticks stay in this browser.</p></div>
+   <div class="aka"><span id="sc">${done} / ${tot} done</span><button class="btn ghost" id="reset">Reset</button></div></div>
+  <div class="chgrid">${CHECK.map(g=>{const n=g.items.filter((_,j)=>TICK[g.k+j]).length;return `<div class="panel" style="border-top:2px solid var(--${g.c})"><div class="ph"><h2 style="color:var(--${g.c})">${g.name}</h2><div class="score" style="--c:var(--${g.c})"><b data-sc="${g.k}">${n}</b>/ ${g.items.length}</div></div>
+   <div class="pb" style="padding-bottom:0"><div class="meter" style="--c:var(--${g.c});margin:0 0 4px"><div data-m="${g.k}" style="width:${100*n/g.items.length}%"></div></div></div>
+   <div class="chk">${g.items.map(([t,why,terms,dz],j)=>`<label class="ci"><input type="checkbox" data-ck="${g.k+j}" ${TICK[g.k+j]?'checked':''}><span class="bx"></span><b>${t}</b><p>${why}</p>${terms.length||dz?`<div class="bts">${terms.map(btChip).join('')}${dz?`<a class="bt" href="#${dz}" data-go="${dz}"><i style="--c:var(--brand)"></i>${DESIGNS_BY[dz].t}<small>design</small></a>`:''}</div>`:''}</label>`).join('')}</div></div>`}).join('')}</div>`}
+document.addEventListener('change',e=>{const c=e.target.closest('[data-ck]');if(!c)return;TICK[c.dataset.ck]=c.checked;saveTick();
+  CHECK.forEach(g=>{const n=g.items.filter((_,j)=>TICK[g.k+j]).length,b=document.querySelector(`[data-sc="${g.k}"]`),m=document.querySelector(`[data-m="${g.k}"]`);if(b)b.textContent=n;if(m)m.style.width=100*n/g.items.length+'%'});
+  const tot=CHECK.reduce((a,g)=>a+g.items.length,0),done=CHECK.reduce((a,g)=>a+g.items.filter((_,j)=>TICK[g.k+j]).length,0);$('sc').textContent=done+' / '+tot+' done'});
+
+function go(id,push=true){if(!ORDER.includes(id))id='start';const from=ORDER.indexOf(curId),to=ORDER.indexOf(id);
+  if(stage){stage.stop();stage=null}curId=id;const page=$('page');const d=DESIGNS_BY[id];
+  page.innerHTML=id==='start'?cover():id==='checklist'?checklist():designPage(d);
+  page.classList.remove('turn-n','turn-p');void page.offsetWidth;if(from>=0&&from!==to)page.classList.add(to>from?'turn-n':'turn-p');
+  if(d){stage=Stage($('stage'),d.h||320);Arch(stage,UI($('ctrl'),$('stats'),id),d,$('log'))}
+  if(id==='start'){requestAnimationFrame(()=>document.querySelectorAll('[data-thumb]').forEach(cv=>thumb(cv,DESIGNS_BY[cv.dataset.thumb])))}
+  if(id==='checklist')$('reset').onclick=()=>{TICK={};saveTick();go('checklist',false)};
+  $('crumb').innerHTML=id==='start'?'Architecture / <b>Contents</b>':id==='checklist'?'Tools / <b>Healthy API checklist</b>':`${lvOf(d.lv).name} / <b>${esc(d.t)}</b>`;
+  $('folio').textContent=id==='start'?'Cover':`${String(to).padStart(2,'0')} / ${ORDER.length-1}`;
+  $('prev').disabled=to<=0;$('next').disabled=to>=ORDER.length-1;
+  if(d&&COLL['l-'+d.lv]){COLL['l-'+d.lv]=false;saveColl()}
+  renderToc();linkify();const on=$('toc').querySelector('button.on');if(on)on.scrollIntoView({block:'nearest'});
+  if(push){try{history.replaceState(null,'','#'+id)}catch(e){}}
+  if(from>=0&&push)window.scrollTo({top:0,behavior:'auto'})}
+let rzT;addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(curId==='start')document.querySelectorAll('[data-thumb]').forEach(cv=>thumb(cv,DESIGNS_BY[cv.dataset.thumb]))},150)});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b){e.preventDefault();hidePop();go(b.dataset.go)}});
+
+/* ---------- cross-links: backend terms mentioned in text link into the Backend Field Guide ---------- */
+const PHR={rest:['REST*','RESTful'],https:['HTTPS*','TLS*','certificate','certificates','TLS handshake'],auth:['JWT*','token','tokens','login token'],cors:['CORS*'],websocket:['WebSocket','WebSockets','Socket.IO*'],
+ latency:['latency','round trip','round trips'],timeout:['timeout','timeouts'],cache:['cache hit','cache miss','hit ratio','Redis*'],ttl:['TTL*','TTLs*'],throughput:['throughput'],pagination:['pagination','paginated'],
+ 'n-plus-1':['N+1*'],'rate-limiting':['rate limit','rate limits','rate limiting','429*'],'load-balancer':['load balancer','load balancers'],'connection-pool':['connection pool','connection pools','connection limit'],
+ percentiles:['p95*','p99*','p50*'],'sli-slo-sla':['SLO*','SLOs*'],'error-budget':['error budget'],'retry-backoff':['backoff','jitter','retries','retry'],idempotency:['idempotent','idempotency key'],
+ 'circuit-breaker':['circuit breaker'],'async-queue':['202 Accepted','queue'],'race-condition':['race condition'],'eventual-consistency':['eventually consistent','replication lag','eventual consistency'],
+ backpressure:['backpressure'],'tail-latency':['tail latency','slowest one'],'thundering-herd':['thundering herd','reconnect storms','sync storms'],'cold-start':['cold start'],'status-codes':['502s','504s','status code']};
+const PMAP=new Map();Object.entries(PHR).forEach(([id,arr])=>arr.forEach(p=>{const cs=p.endsWith('*'),w=cs?p.slice(0,-1):p;PMAP.set(w.toLowerCase(),{id,cs,w})}));
+const PRE=new RegExp('(?<![\\w-])('+[...PMAP.values()].map(o=>o.w).sort((a,b)=>b.length-a.length).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')(?![\\w-])','gi');
+function linkify(){if(!DESIGNS_BY[curId])return;const seen=new Set();
+  document.querySelectorAll('#page .one, #page .txt p, #page .lst li').forEach(root=>{
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('code,a,b,.xref')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+    const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+    nodes.forEach(n=>{const txt=n.nodeValue;PRE.lastIndex=0;let m,last=0,frag=null;
+      while((m=PRE.exec(txt))){const o=PMAP.get(m[1].toLowerCase());if(!o||(o.cs&&m[1]!==o.w)||seen.has(o.id)||!BT[o.id])continue;seen.add(o.id);
+        frag=frag||document.createDocumentFragment();frag.appendChild(document.createTextNode(txt.slice(last,m.index)));
+        const a=document.createElement('a');a.className='xref';a.href=BHREF(o.id);a.dataset.bt=o.id;a.textContent=m[1];frag.appendChild(a);last=m.index+m[1].length}
+      if(frag){frag.appendChild(document.createTextNode(txt.slice(last)));n.replaceWith(frag)}})})}
+const pop=document.createElement('div');pop.className='xpop';pop.hidden=true;document.body.appendChild(pop);
+function hidePop(){pop.hidden=true}
+document.addEventListener('mouseover',e=>{const a=e.target.closest('[data-bt]');if(!a)return;const b=BT[a.dataset.bt];if(!b)return;const l=BTLV[b[1]];
+  pop.innerHTML=`<div class="xh"><span class="lvb" style="--c:var(--${l[1]})">${l[0]}</span><b>${esc(b[0])}</b></div><p>${esc(b[2])}</p><div class="xo">Backend Field Guide · click to open</div>`;
+  pop.hidden=false;const r=a.getBoundingClientRect(),w=Math.min(340,innerWidth-24);pop.style.width=w+'px';
+  pop.style.left=clamp(r.left,12,innerWidth-w-12)+'px';pop.style.top=(r.bottom+8)+'px';const h=pop.offsetHeight;if(r.bottom+8+h>innerHeight-8)pop.style.top=(r.top-h-8)+'px'});
+document.addEventListener('mouseout',e=>{if(e.target.closest('[data-bt]'))hidePop()});
+addEventListener('scroll',hidePop,{passive:true});
+$('prev').onclick=()=>{const i=ORDER.indexOf(curId);if(i>0)go(ORDER[i-1])};
+$('next').onclick=()=>{const i=ORDER.indexOf(curId);if(i<ORDER.length-1)go(ORDER[i+1])};
+document.addEventListener('keydown',e=>{const tag=(e.target.tagName||'').toLowerCase();if(tag==='input'&&e.target.type!=='range'&&e.target.type!=='checkbox')return;
+  if(e.key==='/'){e.preventDefault();$('q').focus();return}if(tag==='input')return;
+  if(e.key==='ArrowRight')$('next').click();if(e.key==='ArrowLeft')$('prev').click()});
+addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h&&h!==curId)go(h,false)});
+go(location.hash.slice(1)||'start',false);
+</script>
+
+</body></html>

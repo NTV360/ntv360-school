@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NTV360 iSCOOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Landing: one full screen, no scroll. Same dark skin as the guides. */
+:root{
+  color-scheme:dark;
+  --bg:#0c161b; --panel:#111e25; --panel2:#18272f; --ink:#eef2f4; --muted:#8a9aa3; --line:#22333c; --line2:#2c3f49;
+  --brand:#ff6a1a; --req:#4f8cff; --ad:#2ccf7f; --slot:#f5a524; --bad:#ff4d4f; --pop:#a78bfa; --on:#0b1419;
+  --sans:'Jost',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --u:min(1vh,1.6vw);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+#bg{position:fixed;inset:0;width:100%;height:100%;display:block}
+.vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 42%,transparent 0,color-mix(in srgb,var(--bg) 70%,transparent) 70%,var(--bg) 100%)}
+.stage{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2.2);
+  padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));text-align:center}
+
+/* 1. the school */
+.school{width:calc(var(--u)*34);height:auto;overflow:visible}
+.school .d{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.3s cubic-bezier(.6,.1,.3,1) forwards}
+.school .s1{stroke:var(--line2)} .school .s2{stroke:var(--brand)} .school .s3{stroke:var(--req)} .school .s4{stroke:var(--ad)}
+.school .win{fill:var(--slot);opacity:0;animation:lit .25s ease forwards}
+.school .flag{fill:var(--brand);transform-origin:left center;transform-box:fill-box;opacity:0;animation:lit .3s ease 1.5s forwards,wave 1.6s ease-in-out 1.8s infinite}
+.school .badge{font-family:var(--mono);font-weight:700;font-size:9px;fill:var(--brand);opacity:0;animation:lit .4s ease 1.25s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes lit{to{opacity:1}}
+@keyframes wave{50%{transform:skewY(6deg) scaleX(.9)}}
+
+/* 2. the title */
+.title{margin:0;font-weight:800;line-height:.95;letter-spacing:-.04em;font-size:min(calc(var(--u)*11),11vw);white-space:nowrap;display:flex;align-items:baseline;justify-content:center}
+.title .w{opacity:0;transform:translateY(.25em);animation:up .5s cubic-bezier(.2,.8,.2,1) forwards}
+.title .ntv{color:var(--ink);margin-right:.22em}
+.title .is{color:var(--brand)}
+.title .gap{display:inline-block;width:.28em;transition:width .55s cubic-bezier(.7,0,.2,1)}
+.title .cool{color:var(--brand)}
+.title.fused .gap{width:0}
+.title.fused .is{text-transform:none}
+.title .cool b{font-weight:800;display:inline-block;transition:transform .5s cubic-bezier(.7,0,.2,1)}
+.title.fused .cool b.cap{transform:translateY(-.06em)}
+.say{margin:0;font-family:var(--mono);font-size:max(11px,calc(var(--u)*1.5));letter-spacing:.3em;text-transform:uppercase;color:var(--muted);opacity:0;transition:opacity .5s}
+.say.on{opacity:1}
+.say i{font-style:normal;color:var(--ink)}
+.say s{text-decoration-color:var(--bad);text-decoration-thickness:2px}
+@keyframes up{to{opacity:1;transform:none}}
+
+/* 3. the logo */
+.logo{height:calc(var(--u)*5.2);min-height:26px;width:auto;opacity:0;transform:scale(.9);transition:opacity .6s,transform .6s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 18px color-mix(in srgb,var(--brand) 35%,transparent))}
+.logo.on{opacity:1;transform:none}
+
+/* 4. the modules */
+.mods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--u)*1.6);width:min(1060px,100%);margin-top:calc(var(--u)*1)}
+.mod{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u)*.7);text-align:left;text-decoration:none;
+  background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-top:2px solid var(--c);padding:calc(var(--u)*2) calc(var(--u)*2.2);
+  opacity:0;transform:translateY(18px);transition:opacity .5s,transform .5s cubic-bezier(.2,.8,.2,1),background .2s,border-color .2s;backdrop-filter:blur(4px)}
+.mod.on{opacity:1;transform:none}
+.mod:hover{background:var(--panel2);border-color:var(--c);transform:translateY(-3px)}
+.mod .k{display:flex;align-items:center;gap:10px;width:100%;font-family:var(--mono);font-size:max(10px,calc(var(--u)*1.15));letter-spacing:.18em;text-transform:uppercase;color:var(--c);font-weight:600}
+.mod .k kbd{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:0;color:var(--muted);border:1px solid var(--line2);padding:1px 6px}
+.mod b{font-size:max(17px,calc(var(--u)*2.7));font-weight:700;letter-spacing:-.01em}
+.mod p{margin:0;font-size:max(12.5px,calc(var(--u)*1.55));line-height:1.45;color:var(--muted)}
+.mod .go{margin-top:auto;padding-top:calc(var(--u)*.6);font-family:var(--mono);font-size:max(10.5px,calc(var(--u)*1.2));letter-spacing:.12em;text-transform:uppercase;color:var(--ink);display:flex;gap:8px;align-items:center}
+.mod .go span{transition:transform .2s;color:var(--c)}
+.mod:hover .go span{transform:translateX(4px)}
+.mod svg{width:max(20px,calc(var(--u)*2.6));height:max(20px,calc(var(--u)*2.6));stroke:var(--c);fill:none;stroke-width:1.7}
+.foot{position:fixed;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));z-index:1;text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);opacity:0;transition:opacity .6s}
+.foot.on{opacity:.7}
+.foot button{background:none;border:0;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+
+@media (max-width:760px){
+  :root{--u:min(.9vh,2.4vw)}
+  .mods{grid-template-columns:1fr;gap:8px}
+  .mod{flex-direction:row;align-items:center;padding:10px 12px;gap:12px}
+  .mod p,.mod .k,.mod .go{display:none}
+  .mod b{font-size:16px;flex:1}
+  .mod::after{content:"→";color:var(--c);font-family:var(--mono)}
+  .title{font-size:min(calc(var(--u)*9.5),11vw)}
+  .foot{display:none}
+}
+@media (max-height:560px) and (min-width:761px){.mod p{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-delay:0s!important;transition-duration:.01s!important}}
+</style>
+</head><body>
+<canvas id="bg" aria-hidden="true"></canvas><div class="vig"></div>
+<main class="stage">
+  <svg class="school" viewBox="0 0 240 150" role="img" aria-label="A school building">
+    <!-- ground + steps -->
+    <path class="d s1" pathLength="1" d="M6 140H234M88 140v-6h64v6M94 134v-5h52v5" style="animation-delay:0s"/>
+    <!-- wings -->
+    <path class="d s3" pathLength="1" d="M22 140V82h62v58M156 140V82h62v58" style="animation-delay:.15s"/>
+    <path class="d s3" pathLength="1" d="M16 84L53 66l31 14M224 84l-37-18-31 14" style="animation-delay:.35s"/>
+    <!-- main hall + pediment -->
+    <path class="d s2" pathLength="1" d="M84 129V62h72v67M76 64l44-30 44 30" style="animation-delay:.25s"/>
+    <!-- columns -->
+    <path class="d s1" pathLength="1" d="M96 129V74M110 129V74M130 129V74M144 129V74M90 72h60" style="animation-delay:.55s"/>
+    <!-- door -->
+    <path class="d s4" pathLength="1" d="M113 129v-24a7 7 0 0114 0v24" style="animation-delay:.7s"/>
+    <!-- clock / 360 badge -->
+    <circle class="d s2" pathLength="1" cx="120" cy="51" r="9" style="animation-delay:.8s"/>
+    <text class="badge" x="120" y="54.2" text-anchor="middle">360</text>
+    <!-- bell tower + flag -->
+    <path class="d s1" pathLength="1" d="M120 34V10" style="animation-delay:.9s"/>
+    <path class="flag" d="M120.8 10h18l-5 5.5 5 5.5h-18z"/>
+    <!-- windows (light up one by one) -->
+    <g id="wins"></g>
+  </svg>
+
+  <h1 class="title" id="title" aria-label="NTV360 iSCOOL">
+    <span class="w ntv" style="animation-delay:1.5s">NTV360</span><span class="w is" style="animation-delay:1.7s">is</span><span class="gap"></span><span class="w cool" style="animation-delay:1.9s"><b class="cap" id="c1">c</b>ool</span>
+  </h1>
+  <p class="say" id="say">say it fast · <i>is cool</i> → <i>school</i></p>
+
+  <img class="logo" id="logo" alt="NTV360" src="data:image/png;base64,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">
+
+  <nav class="mods" aria-label="Modules">
+    <a class="mod" href="backend-terminologies.html" style="--c:var(--req)">
+      <div class="k"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6"/><rect x="3" y="14" width="18" height="6"/><path d="M7 7h.01M7 17h.01"/></svg>Module 01<kbd>1</kbd></div>
+      <b>Backend Field Guide</b><p>34 terms, from REST and status codes to p99, retries, backpressure and thundering herds.</p><div class="go">Open <span>→</span></div></a>
+    <a class="mod" href="git-explained.html" style="--c:var(--ad)">
+      <div class="k"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 7.5v9M18 11.5c0 4-6 3-11.2 5.6"/></svg>Module 02<kbd>2</kbd></div>
+      <b>Git Field Guide</b><p>33 terms with the commit graph moving in front of you: branches, rebase, reset, reflog.</p><div class="go">Open <span>→</span></div></a>
+    <a class="mod" href="architecture-designs.html" style="--c:var(--slot)">
+      <div class="k"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="5"/><rect x="14" y="3" width="7" height="5"/><rect x="8.5" y="16" width="7" height="5"/><path d="M6.5 8v4h11V8M12 12v4"/></svg>Module 03<kbd>3</kbd></div>
+      <b>Architecture Field Guide</b><p>14 live system designs from one server to multi-region, plus a healthy-API checklist.</p><div class="go">Open <span>→</span></div></a>
+  </nav>
+</main>
+<div class="foot" id="foot">Practical school for real-world engineering · <button id="replay">replay intro</button></div>
+
+<script>
+/* windows: two rows per wing, lit one after another */
+(()=>{const g=document.getElementById('wins'),ns='http://www.w3.org/2000/svg';let i=0;
+  [[30,92],[30,112],[164,92],[164,112]].forEach(([x0,y])=>{for(let k=0;k<3;k++){const r=document.createElementNS(ns,'rect');
+    r.setAttribute('x',x0+k*16);r.setAttribute('y',y);r.setAttribute('width',10);r.setAttribute('height',12);r.setAttribute('class','win');
+    r.style.animationDelay=(1.05+(i++)*.05)+'s';g.appendChild(r)}})})();
+
+/* sequence: school → "NTV360 is cool" → fuses into "NTV360 iSCOOL" → logo → modules */
+const $=id=>document.getElementById(id),RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let T=[];const at=(ms,fn)=>T.push(setTimeout(fn,RM?0:ms));
+function fuse(on){const t=$('title'),c=$('c1'),cool=t.querySelector('.cool'),is=t.querySelector('.is');
+  t.classList.toggle('fused',on);is.textContent=on?'iS':'is';c.textContent=on?'C':'c';cool.lastChild.textContent=on?'OOL':'ool'}
+function play(){T.forEach(clearTimeout);T=[];
+  at(2900,()=>fuse(true));at(3300,()=>$('say').classList.add('on'));at(3700,()=>$('logo').classList.add('on'));
+  document.querySelectorAll('.mod').forEach((m,i)=>at(4100+i*140,()=>m.classList.add('on')));at(4700,()=>$('foot').classList.add('on'))}
+function skip(){T.forEach(clearTimeout);T=[];document.querySelectorAll('.school *,.title .w').forEach(e=>{e.style.animationDelay='0s';e.style.animationDuration='.01s'});
+  fuse(true);['say','logo','foot'].forEach(id=>$(id).classList.add('on'));document.querySelectorAll('.mod').forEach(m=>m.classList.add('on'))}
+$('replay').onclick=()=>location.reload();
+addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey)return;const m=document.querySelectorAll('.mod')[+e.key-1];if(m){location.href=m.href;return}
+  if(e.key===' '||e.key==='Escape'||e.key==='Enter')skip()});
+addEventListener('pointerdown',e=>{if(!e.target.closest('a,button'))skip()});
+play();
+
+/* background: a faint grid with requests travelling along it */
+(()=>{const cv=$('bg'),ctx=cv.getContext('2d'),css=k=>getComputedStyle(document.documentElement).getPropertyValue('--'+k).trim();
+  const C=['req','ad','slot','brand','pop'].map(css),line=css('line');let W,H,S=48,P=[],last=performance.now();
+  const fit=()=>{const d=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0)};
+  fit();addEventListener('resize',fit);
+  const spawn=()=>{const h=Math.random()<.5,cols=Math.ceil(W/S),rows=Math.ceil(H/S);const p={h,c:C[Math.floor(Math.random()*C.length)],
+    k:h?Math.floor(Math.random()*rows)*S:Math.floor(Math.random()*cols)*S,t:-20,v:(40+Math.random()*90)*(Math.random()<.5?1:-1),len:h?W:H};if(p.v<0)p.t=p.len+20;P.push(p)};
+  const loop=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle=line;ctx.globalAlpha=.45;ctx.lineWidth=1;ctx.beginPath();for(let x=0;x<=W;x+=S){ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H)}for(let y=0;y<=H;y+=S){ctx.moveTo(0,y+.5);ctx.lineTo(W,y+.5)}ctx.stroke();
+    if(P.length<26&&Math.random()<.2)spawn();
+    for(let i=P.length-1;i>=0;i--){const p=P[i];p.t+=p.v*dt;if(p.t<-30||p.t>p.len+30){P.splice(i,1);continue}
+      const x=p.h?p.t:p.k,y=p.h?p.k:p.t,tail=p.v>0?-1:1,g=p.h?ctx.createLinearGradient(x+tail*60,y,x,y):ctx.createLinearGradient(x,y+tail*60,x,y);
+      g.addColorStop(0,'transparent');g.addColorStop(1,p.c);ctx.globalAlpha=.55;ctx.strokeStyle=g;ctx.lineWidth=2;ctx.beginPath();
+      if(p.h){ctx.moveTo(x+tail*60,y+.5);ctx.lineTo(x,y+.5)}else{ctx.moveTo(x+.5,y+tail*60);ctx.lineTo(x+.5,y)}ctx.stroke();
+      ctx.globalAlpha=.9;ctx.fillStyle=p.c;ctx.fillRect(x-2.5,y-2.5,5,5)}
+    ctx.globalAlpha=1;if(!RM)requestAnimationFrame(loop)};
+  requestAnimationFrame(loop)})();
+</script>
+</body></html>
